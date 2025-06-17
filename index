@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>オフィスコーヒー購入システム</title>
+    <style>
+      :root {
+        font-size: calc(14px + 0.3vw);
+      }
+
+      body {
+        font-family: "Meiryo", "メイリオ", sans-serif;
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 10px;
+        background-color: #f5f5f5;
+        color: #333;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .container {
+        width: 95%;
+        max-width: 950px;
+        margin: 0 auto;
+        padding: 15px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        box-sizing: border-box;
+      }
+
+      h1, h2 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        color: #2c3e50;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: #2980b9;
+        font-size: 1.3em;
+      }
+
+      /* 取消UI用スタイル */
+      #undo-coffee-list .log-entry {
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.2s;
+      }
+
+      #undo-coffee-list .log-entry:hover {
+        background-color: #f5f5f5 !important;
+      }
+
+      /* 取消ボタンのスタイル */
+      #start-undo-btn {
+        transition: all 0.3s;
+      }
+
+      #start-undo-btn:disabled {
+        background-color: #95a5a6;
+      }
+
+      .section {
+        margin-bottom: 25px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+      }
+
+      .coffee-store {
+        margin-bottom: 20px;
+        background-color: white;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      }
+
+      .store-name {
+        font-weight: bold;
+        color: #e74c3c;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .coffee-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .coffee-btn {
+        padding: 8px 12px;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        text-align: left;
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .coffee-btn::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 0.7em;
+        font-weight: bold;
+      }
+
+      .hot::after {
+        content: "HOT";
+        background-color: #c0392b;
+        color: white;
+      }
+
+      .ice::after {
+        content: "ICE";
+        background-color: #2980b9;
+        color: white;
+      }
+
+      /* コーヒータイプ別色分け */
+      .americano {
+        background-color: #2c3e50;
+      }
+
+      .latte {
+        background-color: #d35400;
+      }
+
+      .special {
+        background-color: #3cb038;
+      }
+
+      .other {
+        background-color: #7f8c8d;
+      }
+
+      .user-display {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 10px;
+      }
+
+      .user-card {
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        text-align: center;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .active-user {
+        background-color: #eaf2f8;
+        border: 2px solid #3498db;
+        transform: scale(1.05);
+      }
+
+      .user-name {
+        font-weight: bold;
+      }
+
+      .user-balance {
+        font-size: 1.1em;
+        margin-top: 5px;
+        color: #e74c3c;
+        font-weight: bold;
+      }
+
+      .balance-display {
+        font-size: 28px;
+        font-weight: bold;
+        text-align: center;
+        margin: 20px 0;
+        color: #2c3e50;
+        padding: 15px;
+        background-color: #ecf0f1;
+        border-radius: 5px;
+        border: 1px solid #ddd;
+      }
+
+      .payment-options {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .payment-btn {
+        padding: 10px 15px;
+        background-color: #2ecc71;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: bold;
+        min-width: 80px;
+      }
+
+      .payment-btn:hover {
+        background-color: #27ae60;
+      }
+
+      .transaction-log {
+        margin-top: 25px;
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: white;
+      }
+
+      .log-entry {
+        margin-bottom: 8px;
+        padding: 8px;
+        border-bottom: 1px solid #eee;
+        font-size: 0.9em;
+        display: flex;
+      }
+
+      .timestamp {
+        color: #7f8c8d;
+        font-size: 0.8em;
+        margin-right: 10px;
+        min-width: 140px;
+      }
+
+      .action-btn {
+        padding: 8px 12px;
+        margin: 5px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        color: white;
+        transition: all 0.3s;
+      }
+
+      .action-btn:hover {
+        opacity: 0.9;
+        transform: scale(1.02);
+      }
+
+      .action-btn:active {
+        transform: scale(0.98);
+      }
+
+      .instructions {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        border-left: 4px solid #3498db;
+        font-size: 0.9em;
+      }
+
+      .monthly-stats {
+        display: none;
+        background-color: white;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
+        border: 1px solid #ddd;
+      }
+
+      .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      .stats-table th,
+      .stats-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+
+      .stats-table th {
+        background-color: #f2f2f2;
+      }
+
+      .stats-table tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      .stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .close-btn {
+        background: none;
+        border: none;
+        font-size: 1.2em;
+        cursor: pointer;
+        color: #7f8c8d;
+      }
+
+      /* モバイル対応 */
+      @media (max-width: 768px) {
+        :root {
+          font-size: 14px;
+        }
+        
+        .container {
+          width: 100%;
+          padding: 10px;
+        }
+        
+        .coffee-options {
+          grid-template-columns: 1fr;
+        }
+        
+        .user-display {
+          grid-template-columns: 1fr 1fr;
+        }
+        
+        .payment-options {
+          flex-direction: row;
+          flex-wrap: wrap;
+        }
+        
+        .payment-btn {
+          min-width: 30%;
+          flex: 1;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .user-display {
+          grid-template-columns: 1fr;
+        }
+        
+        .payment-btn {
+          min-width: 45%;
+        }
+        
+        .balance-display {
+          font-size: 1.5em;
+          padding: 10px;
+        }
+        
+        h1 {
+          font-size: 1.5em;
+        }
+        
+        h2 {
+          font-size: 1.2em;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>オフィスコーヒー購入システム</h1>
+
+      <div class="instructions">
+        <h3>ご利用方法</h3>
+        <ol>
+          <li>まずユーザーを選択（クリックして選択）</li>
+          <li>購入するコーヒーを選択（種類別に色分け表示）</li>
+          <li>お札を取る時は「支払い」ボタンをクリック</li>
+          <li>残高は随時確認可能</li>
+        </ol>
+        <div style="text-align: right">
+          <button class="stats-btn" onclick="showMonthlyStats()">
+            月別利用統計を表示
+          </button>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>ユーザー選択</h2>
+        <div class="user-display">
+          <div class="user-card" data-user="user1" onclick="selectUser('user1')">
+            <div class="user-name">後藤なな</div>
+            <div class="user-balance" data-user="user1">0円</div>
+          </div>
+          <div class="user-card" data-user="user2" onclick="selectUser('user2')">
+            <div class="user-name">彭月欣</div>
+            <div class="user-balance" data-user="user2">0円</div>
+          </div>
+          <div class="user-card" data-user="user3" onclick="selectUser('user3')">
+            <div class="user-name">洪賢美</div>
+            <div class="user-balance" data-user="user3">0円</div>
+          </div>
+          <div class="user-card" data-user="user4" onclick="selectUser('user4')">
+            <div class="user-name">戴沅沣</div>
+            <div class="user-balance" data-user="user4">0円</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>コーヒーを選ぶ</h2>
+
+        <div class="coffee-store">
+          <div class="store-name">セブン-イレブン (セブンカフェ)</div>
+          <div class="coffee-options">
+            <!-- アメリカーノ（黒） -->
+            <button class="coffee-btn americano hot" onclick="addCoffee('セブンカフェ ホットコーヒー R', 121)">
+              ホットコーヒー R 121円
+            </button>
+            <button class="coffee-btn americano hot" onclick="addCoffee('セブンカフェ ホットコーヒー L', 180)">
+              ホットコーヒー L 180円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('セブンカフェ アイスコーヒー R', 121)">
+              アイスコーヒー R 121円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('セブンカフェ アイスコーヒー L', 211)">
+              アイスコーヒー L 211円
+            </button>
+
+            <!-- スペシャル（緑） -->
+            <button class="coffee-btn special hot" onclick="addCoffee('セブンカフェ キリマンジャロホット R', 140)">
+              キリマンジャロホット R 140円
+            </button>
+            <button class="coffee-btn special hot" onclick="addCoffee('セブンカフェ キリマンジャロホット L', 211)">
+              キリマンジャロホット L 211円
+            </button>
+            <button class="coffee-btn special ice" onclick="addCoffee('セブンカフェ キリマンジャロアイス R', 140)">
+              キリマンジャロアイス R 140円
+            </button>
+            <button class="coffee-btn special ice" onclick="addCoffee('セブンカフェ キリマンジャロアイス L', 241)">
+              キリマンジャロアイス L 241円
+            </button>
+
+            <!-- カフェラテ（オレンジ） -->
+            <button class="coffee-btn latte hot" onclick="addCoffee('セブンカフェ ホットカフェラテ R', 190)">
+              ホットカフェラテ R 190円
+            </button>
+            <button class="coffee-btn latte hot" onclick="addCoffee('セブンカフェ ホットカフェラテ L', 251)">
+              ホットカフェラテ L 251円
+            </button>
+            <button class="coffee-btn latte ice" onclick="addCoffee('セブンカフェ アイスカフェラテ R', 241)">
+              アイスカフェラテ R 241円
+            </button>
+            <button class="coffee-btn latte ice" onclick="addCoffee('セブンカフェ アイスカフェラテ L', 300)">
+              アイスカフェラテ L 300円
+            </button>
+          </div>
+        </div>
+
+        <div class="coffee-store">
+          <div class="store-name">ファミリーマート (ファミマカフェ)</div>
+          <div class="coffee-options">
+            <button class="coffee-btn americano hot" onclick="addCoffee('ファミマ ブレンド S', 145)">
+              ブレンド S 145円
+            </button>
+            <button class="coffee-btn americano hot" onclick="addCoffee('ファミマ ブレンド M', 220)">
+              ブレンド M 220円
+            </button>
+            <button class="coffee-btn americano hot" onclick="addCoffee('ファミマ ブレンド L', 260)">
+              ブレンド L 260円
+            </button>
+
+            <button class="coffee-btn americano ice" onclick="addCoffee('ファミマ アイスコーヒー S', 145)">
+              アイスコーヒー S 145円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('ファミマ アイスコーヒー M', 240)">
+              アイスコーヒー M 240円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('ファミマ アイスコーヒー L', 330)">
+              アイスコーヒー L 330円
+            </button>
+
+            <!-- カフェラテ（オレンジ） -->
+            <button class="coffee-btn latte hot" onclick="addCoffee('ファミマ カフェラテ M', 220)">
+              カフェラテ M 220円
+            </button>
+            <button class="coffee-btn latte hot" onclick="addCoffee('ファミマ カフェラテ L', 260)">
+              カフェラテ L 260円
+            </button>
+            <button class="coffee-btn latte ice" onclick="addCoffee('ファミマ アイスカフェラテ M', 240)">
+              アイスカフェラテ M 240円
+            </button>
+            <button class="coffee-btn latte ice" onclick="addCoffee('ファミマ アイスカフェラテ L', 330)">
+              アイスカフェラテ L 330円
+            </button>
+            <!-- アメリカーノ（黒） -->
+            <button class="coffee-btn other hot" onclick="addCoffee('ファミマ モカブレンド S', 170)">
+              モカブレンド S 170円
+            </button>
+            <button class="coffee-btn other hot" onclick="addCoffee('ファミマ モカブレンド M', 250)">
+              モカブレンド M 250円
+            </button>
+            <button class="coffee-btn other ice" onclick="addCoffee('ファミマ アイスモカブレンド', 190)">
+              アイスモカブレンド 190円
+            </button>
+          </div>
+        </div>
+
+        <div class="coffee-store">
+          <div class="store-name">ローソン (ローソンカフェ)</div>
+          <div class="coffee-options">
+            <!-- アメリカーノ（黒） -->
+            <button class="coffee-btn americano hot" onclick="addCoffee('ローソン コーヒー S', 140)">
+              コーヒー S 140円
+            </button>
+            <button class="coffee-btn americano hot" onclick="addCoffee('ローソン コーヒー M', 210)">
+              コーヒー M 210円
+            </button>
+            <button class="coffee-btn americano hot" onclick="addCoffee('ローソン コーヒー L', 240)">
+              コーヒー L 240円
+            </button>
+            <button class="coffee-btn americano hot" onclick="addCoffee('ローソン メガホットコーヒー', 340)">
+              メガホットコーヒー 340円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('ローソン アイスコーヒー S', 140)">
+              アイスコーヒー S 140円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('ローソン アイスコーヒー M', 240)">
+              アイスコーヒー M 240円
+            </button>
+            <button class="coffee-btn americano ice" onclick="addCoffee('ローソン メガアイスコーヒー', 340)">
+              メガアイスコーヒー 340円
+            </button>
+
+            <!-- カフェラテ（オレンジ） -->
+            <button class="coffee-btn latte hot" onclick="addCoffee('ローソン カフェラテ M', 210)">
+              カフェラテ M 210円
+            </button>
+            <button class="coffee-btn latte hot" onclick="addCoffee('ローソン カフェラテ L', 270)">
+              カフェラテ L 270円
+            </button>
+            <button class="coffee-btn latte hot" onclick="addCoffee('ローソン メガホットカフェラテ', 360)">
+              メガホットカフェラテ 360円
+            </button>
+            <button class="coffee-btn latte ice" onclick="addCoffee('ローソン アイスカフェラテ M', 260)">
+              アイスカフェラテ M 260円
+            </button>
+            <button class="coffee-btn latte ice" onclick="addCoffee('ローソン メガアイスカフェラテ', 390)">
+              メガアイスカフェラテ 390円
+            </button>
+
+            <!-- スペシャル（緑） -->
+            <button class="coffee-btn special ice" onclick="addCoffee('ローソン アイスほうじ茶ラテ', 260)">
+              アイスほうじ茶ラテ 260円
+            </button>
+            <button class="coffee-btn special ice" onclick="addCoffee('ローソン アイス宇治抹茶ラテ', 280)">
+              アイス宇治抹茶ラテ 280円
+            </button>
+            <button class="coffee-btn other hot" onclick="addCoffee('ローソン モカブレンド S', 160)">
+              モカブレンド S 160円
+            </button>
+            <button class="coffee-btn other ice" onclick="addCoffee('ローソン アイスモカブレンド', 170)">
+              アイスモカブレンド 170円
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>現在の残高</h2>
+        <div class="balance-display" id="current-balance">0円</div>
+        <div class="payment-options">
+          <button class="payment-btn" onclick="makePayment(100)">
+            100円支払い
+          </button>
+          <button class="payment-btn" onclick="makePayment(500)">
+            500円支払い
+          </button>
+          <button class="payment-btn" onclick="makePayment(1000)">
+            1000円支払い
+          </button>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>操作取り消し</h2>
+        <div style="text-align: center">
+          <button class="action-btn" id="start-undo-btn" style="background-color: #e74c3c" onclick="startUndoProcess()">
+            コーヒー取消を開始
+          </button>
+          <div id="undo-ui" style="display: none; margin-top: 15px">
+            <p>取消したいコーヒーを選択してください：</p>
+            <div id="undo-coffee-list" style="max-height: 200px; overflow-y: auto"></div>
+            <button class="action-btn" onclick="confirmUndo()" style="background-color: #27ae60; margin-top: 10px">
+              確認取消
+            </button>
+            <button class="action-btn" onclick="cancelUndo()" style="background-color: #7f8c8d; margin-top: 10px">
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>取引履歴</h2>
+        <div id="transaction-list">
+          <!-- 取引履歴がここに表示されます -->
+        </div>
+      </div>
+
+      <div id="monthly-stats" class="monthly-stats">
+        <div class="stats-header">
+          <h3>月別利用統計</h3>
+          <button class="close-btn" onclick="closeMonthlyStats()">×</button>
+        </div>
+        <div id="stats-content"></div>
+      </div>
+      
+      <div class="section">
+        <h2>データリセット</h2>
+        <div style="text-align: center">
+          <button class="action-btn" style="background-color: #e74c3c" onclick="confirmResetAll()">
+            全データをリセット
+          </button>
+          <p style="font-size: 0.8em; color: #666; margin-top: 5px">
+            ※全ユーザーの残高と月別統計をゼロに戻します
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // 現在選択中のユーザー
+      let currentUser = null;
+
+      // ユーザーデータ
+      let users = {
+        user1: { balance: 0, name: "後藤なな" },
+        user2: { balance: 0, name: "彭月欣" },
+        user3: { balance: 0, name: "洪賢美" },
+        user4: { balance: 0, name: "戴沅沣" },
+      };
+
+      // 取引履歴
+      let transactions = [];
+
+      // 月別統計データ
+      let monthlyStats = {};
+
+      // 取消用グローバル変数
+      let selectedTransactionForUndo = null;
+      let isProcessing = false;
+
+      // 初期化 - ローカルストレージからデータを読み込む
+      function init() {
+        const savedData = localStorage.getItem("coffeeSystemDataJPv2");
+        if (savedData) {
+          try {
+            const data = JSON.parse(savedData);
+            users = data.users || users;
+            transactions = data.transactions || transactions;
+            monthlyStats = data.monthlyStats || {};
+
+            // データ不整合をチェック
+            if (!monthlyStats || typeof monthlyStats !== "object") {
+              monthlyStats = {};
+              recalculateMonthlyStats();
+            }
+          } catch (e) {
+            console.error("データ読み込みエラー:", e);
+            localStorage.removeItem("coffeeSystemDataJPv2");
+          }
+        }
+
+        updateAllBalances();
+        updateTransactionList();
+      }
+
+      // データをローカルストレージに保存
+      function saveData() {
+        recalculateMonthlyStats();
+
+        const data = {
+          users: users,
+          transactions: transactions,
+          monthlyStats: monthlyStats,
+        };
+        localStorage.setItem("coffeeSystemDataJPv2", JSON.stringify(data));
+      }
+      
+      // 月次統計を全データから再計算
+      function recalculateMonthlyStats() {
+        const newMonthlyStats = {};
+
+        transactions.forEach((transaction) => {
+          if (transaction.message.includes("取消し")) return;
+
+          const transDate = new Date(transaction.timestamp);
+          const yearMonth = `${transDate.getFullYear()}-${(transDate.getMonth() + 1).toString().padStart(2, "0")}`;
+          const amount = extractAmountFromMessage(transaction.message);
+
+          if (!amount || isNaN(amount)) return;
+
+          if (!newMonthlyStats[yearMonth]) {
+            newMonthlyStats[yearMonth] = {
+              total: 0,
+              users: {
+                user1: 0,
+                user2: 0,
+                user3: 0,
+                user4: 0,
+              },
+            };
+          }
+
+          newMonthlyStats[yearMonth].total += amount;
+          if (
+            transaction.user &&
+            newMonthlyStats[yearMonth].users[transaction.user] !== undefined
+          ) {
+            newMonthlyStats[yearMonth].users[transaction.user] += amount;
+          }
+        });
+
+        monthlyStats = newMonthlyStats;
+      }
+
+      // メッセージから金額を抽出
+      function extractAmountFromMessage(message) {
+        const purchaseMatch = message.match(/購入\s*\((\d+)円\)/);
+        if (purchaseMatch) return parseInt(purchaseMatch[1]);
+
+        const undoMatch = message.match(/(\d+)円\s*取消し/);
+        if (undoMatch) return -parseInt(undoMatch[1]);
+
+        return 0;
+      }
+
+      // 取消流程を開始
+      function startUndoProcess() {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+          if (!currentUser) {
+            alert("まずユーザーを選択してください");
+            return;
+          }
+
+          const userTransactions = transactions.filter(
+            (t) => t.user === currentUser && t.message.includes("購入"),
+          );
+
+          if (userTransactions.length === 0) {
+            alert("取消できるコーヒー購入記録がありません");
+            return;
+          }
+
+          document.getElementById("undo-ui").style.display = "block";
+          document.getElementById("start-undo-btn").style.display = "none";
+
+          const coffeeList = document.getElementById("undo-coffee-list");
+          coffeeList.innerHTML = "";
+
+          userTransactions.forEach((trans, index) => {
+            const transElement = document.createElement("div");
+            transElement.className = "log-entry";
+            transElement.style.cursor = "pointer";
+            transElement.style.backgroundColor =
+              selectedTransactionForUndo === index ? "#eaf2f8" : "";
+            transElement.innerHTML = `
+                <div class="timestamp">[${trans.timestamp}]</div>
+                <div>${trans.message}</div>
+            `;
+            transElement.addEventListener("click", () => {
+              selectedTransactionForUndo = index;
+              document
+                .querySelectorAll("#undo-coffee-list .log-entry")
+                .forEach((el) => {
+                  el.style.backgroundColor = "";
+                });
+              transElement.style.backgroundColor = "#eaf2f8";
+            });
+            coffeeList.appendChild(transElement);
+          });
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      // 取消を確認
+      function confirmUndo() {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+          if (selectedTransactionForUndo === null) {
+            alert("取消するコーヒーを選択してください");
+            return;
+          }
+
+          const userTransactions = transactions.filter(
+            (t) => t.user === currentUser && t.message.includes("購入"),
+          );
+          const selectedTrans = userTransactions[selectedTransactionForUndo];
+
+          if (!selectedTrans) {
+            alert("選択した記録が見つかりません");
+            return;
+          }
+
+          const amountMatch = selectedTrans.message.match(/\((\d+)円\)/);
+          if (!amountMatch) {
+            alert("金額情報が不正です");
+            return;
+          }
+
+          const amount = parseInt(amountMatch[1]);
+          users[currentUser].balance -= amount;
+          updateBalanceDisplay(currentUser);
+
+          // 該当取引を履歴から削除
+          const transIndex = transactions.findIndex((t) => t === selectedTrans);
+          if (transIndex !== -1) {
+            transactions.splice(transIndex, 1);
+          }
+
+          addTransactionLog(
+            `${users[currentUser].name} がコーヒー購入を取り消し (${amount}円)`,
+          );
+          saveData();
+          resetUndoUI();
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      // 取消流程をキャンセル
+      function cancelUndo() {
+        resetUndoUI();
+      }
+
+      // UIをリセット
+      function resetUndoUI() {
+        document.getElementById("undo-ui").style.display = "none";
+        document.getElementById("start-undo-btn").style.display = "inline-block";
+        selectedTransactionForUndo = null;
+        document.getElementById("undo-coffee-list").innerHTML = "";
+      }
+
+      // 取引履歴を追加
+      function addTransactionLog(message) {
+        const now = new Date();
+        const timestamp = now.toLocaleString("ja-JP", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+
+        transactions.unshift({
+          timestamp: timestamp,
+          message: message,
+          user: currentUser,
+        });
+
+        if (transactions.length > 100) {
+          transactions.pop();
+        }
+
+        updateTransactionList();
+        saveData(); // 即時保存して統計を更新
+      }
+
+      // 取引履歴リストを更新
+      function updateTransactionList() {
+        const listElement = document.getElementById("transaction-list");
+        listElement.innerHTML = "";
+
+        transactions.forEach((transaction) => {
+          const entry = document.createElement("div");
+          entry.className = "log-entry";
+          entry.innerHTML = `
+            <div class="timestamp">[${transaction.timestamp}]</div>
+            <div>${transaction.message}</div>
+        `;
+          listElement.appendChild(entry);
+        });
+      }
+
+      // 月別統計を表示
+      function showMonthlyStats() {
+        recalculateMonthlyStats();
+
+        const sortedMonths = Object.keys(monthlyStats).sort((a, b) =>
+          b.localeCompare(a),
+        );
+
+        let statsHTML = `
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>年月</th>
+                    <th>合計金額</th>
+                    <th>後藤さん</th>
+                    <th>彭さん</th>
+                    <th>洪さん</th>
+                    <th>戴さん</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        if (sortedMonths.length === 0) {
+          statsHTML += `
+            <tr>
+                <td colspan="6" style="text-align:center;">データがありません</td>
+            </tr>`;
+        } else {
+          sortedMonths.forEach((yearMonth) => {
+            statsHTML += `
+                <tr>
+                    <td>${yearMonth}</td>
+                    <td>${monthlyStats[yearMonth].total.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user1.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user2.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user3.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user4.toLocaleString()}円</td>
+                </tr>`;
+          });
+        }
+
+        statsHTML += `
+            </tbody>
+        </table>
+        <p style="text-align: right; margin-top: 10px; font-size: 0.9em; color: #7f8c8d;">
+            更新: ${new Date().toLocaleString("ja-JP")}
+        </p>`;
+
+        document.getElementById("stats-content").innerHTML = statsHTML;
+        document.getElementById("monthly-stats").style.display = "block";
+      }
+
+      // 月別統計を閉じる
+      function closeMonthlyStats() {
+        document.getElementById("monthly-stats").style.display = "none";
+      }
+
+      // ユーザーを選択
+      function selectUser(userId) {
+        currentUser = userId;
+
+        document.querySelectorAll(".user-card").forEach((card) => {
+          card.classList.remove("active-user");
+        });
+        document
+          .querySelector(`.user-card[data-user="${userId}"]`)
+          .classList.add("active-user");
+
+        document.getElementById("current-balance").textContent =
+          `${users[userId].balance}円`;
+
+        addTransactionLog(`${users[userId].name} を選択しました`);
+      }
+
+      // コーヒーを追加
+      function addCoffee(coffeeName, price) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+          if (!currentUser) {
+            alert("まずユーザーを選択してください");
+            return;
+          }
+
+          users[currentUser].balance += price;
+          updateBalanceDisplay(currentUser);
+
+          addTransactionLog(
+            `${users[currentUser].name} が ${coffeeName} を購入 (${price}円)`,
+          );
+          saveData();
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      // 支払い処理
+      function makePayment(amount) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+          if (!currentUser) {
+            alert("まずユーザーを選択してください");
+            return;
+          }
+
+          if (users[currentUser].balance < amount) {
+            alert("残高が不足しています");
+            return;
+          }
+
+          users[currentUser].balance -= amount;
+          updateBalanceDisplay(currentUser);
+
+          addTransactionLog(`${users[currentUser].name} が ${amount}円 支払い`);
+          saveData();
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      // 残高表示を更新
+      function updateBalanceDisplay(userId) {
+        document.querySelector(
+          `.user-balance[data-user="${userId}"]`,
+        ).textContent = `${users[userId].balance}円`;
+
+        if (currentUser === userId) {
+          document.getElementById("current-balance").textContent =
+            `${users[userId].balance}円`;
+        }
+      }
+
+      // 全ユーザーの残高表示を更新
+      function updateAllBalances() {
+        for (const userId in users) {
+          updateBalanceDisplay(userId);
+        }
+      }
+
+      // 全データをリセット
+      function resetAllData() {
+        // ユーザー残高リセット
+        for (const userId in users) {
+          users[userId].balance = 0;
+        }
+
+        // 取引履歴クリア
+        transactions = [];
+
+        // 月別統計クリア
+        monthlyStats = {};
+
+        // UI更新
+        updateAllBalances();
+        updateTransactionList();
+
+        // データ保存
+        saveData();
+
+        // 取消UIを閉じる（もし開いていたら）
+        resetUndoUI();
+
+        alert("全データをリセットしました");
+      }
+
+      // パスワード確認付きリセット
+      function confirmResetAll() {
+        const password = prompt("管理者パスワードを入力してください");
+        if (password === "1689") {
+          if (confirm("本当に全データをリセットしますか？")) {
+            resetAllData();
+          }
+        } else if (password) {
+          alert("パスワードが違います");
+        }
+      }
+
+      // アプリを初期化
+      init();
+    </script>
+  </body>
+</html>
