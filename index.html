@@ -800,347 +800,326 @@
       </div>
     </div>
 
-    <script>
-      // 您的Firebase配置
-      const firebaseConfig = {
-        apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
-        authDomain: "coffee-ginza-kb.firebaseapp.com",
-        projectId: "coffee-ginza-kb",
-        storageBucket: "coffee-ginza-kb.firebasestorage.app",
-        messagingSenderId: "463453581877",
-        appId: "1:463453581877:web:69002929a5298f194ff77c",
-        measurementId: "G-6NVRDHQBBK",
-        databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com/", // 必须添加数据库URL
-      }
+     <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
+            authDomain: "coffee-ginza-kb.firebaseapp.com",
+            projectId: "coffee-ginza-kb",
+            storageBucket: "coffee-ginza-kb.appspot.com",
+            messagingSenderId: "463453581877",
+            appId: "1:463453581877:web:69002929a5298f194ff77c",
+            measurementId: "G-6NVRDHQBBK",
+            databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com/"
+        };
 
-      // 初始化Firebase
-      firebase.initializeApp(firebaseConfig)
-      const database = firebase.database()
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
+        // 数据存储路径
+        const DATA_PATH = "officeCoffeeSystemData";
+        
+        // 共享数据对象结构
+        let sharedData = {
+            version: "1.0",
+            users: {
+                user1: { name: "後藤なな", balance: 0 },
+                user2: { name: "彭月欣", balance: 0 },
+                user3: { name: "洪賢美", balance: 0 },
+                user4: { name: "戴沅沣", balance: 0 }
+            },
+            transactions: [],
+            monthlyStats: {}
+        };
 
-      // 数据路径
-      const DATA_PATH = "officeCoffeeSystem/"
+        // 当前选中的用户
+        let currentUser = null;
+        let isProcessing = false;
 
-      // 共享数据对象结构
-      let sharedData = {
-        users: {
-          user1: { name: "後藤なな", balance: 0 },
-          user2: { name: "彭月欣", balance: 0 },
-          user3: { name: "洪賢美", balance: 0 },
-          user4: { name: "戴沅沣", balance: 0 },
-        },
-        transactions: [],
-      }
+        // 初始化应用
+        function init() {
+            loadData();
+        }
 
-      // 当前选中的用户
-      let currentUser = null
-      let isProcessing = false
+        // 从Firebase加载数据
+        function loadData() {
+            showLoading(true);
+            
+            database.ref(DATA_PATH).once('value').then((snapshot) => {
+                const savedData = snapshot.val();
+                
+                if (savedData) {
+                    try {
+                        // 数据迁移和验证
+                        if (savedData.version === sharedData.version) {
+                            sharedData = savedData;
+                        } else {
+                            // 处理不同版本的数据结构
+                            migrateData(savedData);
+                        }
+                    } catch (e) {
+                        console.error("データ読み込みエラー:", e);
+                        resetData();
+                    }
+                } else {
+                    // 没有数据，保存初始结构
+                    saveData();
+                }
+                
+                renderUserCards();
+                updateAllBalances();
+                updateTransactionList();
+                showLoading(false);
+            }).catch((error) => {
+                console.error("データ読み込みエラー:", error);
+                showLoading(false);
+                alert("データの読み込みに失敗しました。ネットワーク接続を確認してください。");
+            });
+        }
 
-      // 初始化应用
-      function init() {
-        loadData()
-        setupDataListeners()
-        renderUserCards()
-      }
-
-      // 设置Firebase数据监听
-      function setupDataListeners() {
-        // 监听用户数据变化
-        database.ref(DATA_PATH + "users").on("value", (snapshot) => {
-          if (snapshot.exists()) {
-            sharedData.users = snapshot.val()
-            updateAllBalances()
-            renderUserCards()
-          }
-        })
-
-        // 监听交易记录变化
-        database.ref(DATA_PATH + "transactions").on("value", (snapshot) => {
-          if (snapshot.exists()) {
-            sharedData.transactions = snapshot.val()
-            updateTransactionList()
-          }
-        })
-      }
-
-      // 从Firebase加载初始数据
-      function loadData() {
-        database
-          .ref(DATA_PATH)
-          .once("value")
-          .then((snapshot) => {
-            if (snapshot.exists()) {
-              const data = snapshot.val()
-              sharedData.users = data.users || sharedData.users
-              sharedData.transactions = data.transactions || []
-
-              updateAllBalances()
-              renderUserCards()
-              updateTransactionList()
+        // 数据迁移处理
+        function migrateData(oldData) {
+            // 保留用户余额
+            for (const userId in sharedData.users) {
+                if (oldData.users && oldData.users[userId]) {
+                    sharedData.users[userId].balance = oldData.users[userId].balance || 0;
+                }
             }
-          })
-          .catch((error) => {
-            console.error("データ読み込みエラー:", error)
-          })
-      }
+            
+            // 迁移交易记录
+            if (oldData.transactions) {
+                sharedData.transactions = oldData.transactions.slice(0, 100); // 只保留最近的100条
+            }
+            
+            saveData();
+        }
 
-      // 保存数据到Firebase
-      function saveData(path, data) {
-        return database
-          .ref(DATA_PATH + path)
-          .set(data)
-          .catch((error) => {
-            console.error("データ保存エラー:", error)
-            alert(
-              "データの保存に失敗しました。ネットワーク接続を確認してください。",
-            )
-          })
-      }
+        // 保存数据到Firebase
+        function saveData() {
+            showLoading(true);
+            
+            database.ref(DATA_PATH).set(sharedData)
+                .then(() => {
+                    console.log("データが正常に保存されました");
+                    showLoading(false);
+                })
+                .catch((error) => {
+                    console.error("データ保存エラー:", error);
+                    showLoading(false);
+                    alert("データの保存に失敗しました。ネットワーク接続を確認してください。");
+                });
+        }
 
-      // 渲染用户卡片
-      function renderUserCards() {
-        const userDisplay = document.querySelector(".user-display")
-        userDisplay.innerHTML = ""
+        // 显示/隐藏加载指示器
+        function showLoading(show) {
+            const loadingElement = document.getElementById("loading-indicator");
+            if (loadingElement) {
+                loadingElement.style.display = show ? "block" : "none";
+            }
+        }
 
-        for (const userId in sharedData.users) {
-          const user = sharedData.users[userId]
-          const card = document.createElement("div")
-          card.className = `user-card ${currentUser === userId ? "active-user" : ""}`
-          card.dataset.user = userId
-          card.onclick = () => selectUser(userId)
+        // 重置数据
+        function resetData() {
+            sharedData = {
+                version: "1.0",
+                users: {
+                    user1: { name: "後藤なな", balance: 0 },
+                    user2: { name: "彭月欣", balance: 0 },
+                    user3: { name: "洪賢美", balance: 0 },
+                    user4: { name: "戴沅沣", balance: 0 }
+                },
+                transactions: [],
+                monthlyStats: {}
+            };
+            
+            saveData();
+        }
 
-          card.innerHTML = `
+        // 渲染用户卡片
+        function renderUserCards() {
+            const userDisplay = document.querySelector(".user-display");
+            userDisplay.innerHTML = "";
+            
+            for (const userId in sharedData.users) {
+                const user = sharedData.users[userId];
+                const card = document.createElement("div");
+                card.className = `user-card ${currentUser === userId ? "active-user" : ""}`;
+                card.dataset.user = userId;
+                card.onclick = () => selectUser(userId);
+                
+                card.innerHTML = `
                     <div class="user-name">${user.name}</div>
                     <div class="user-balance" data-user="${userId}">${user.balance}円</div>
-                `
-
-          userDisplay.appendChild(card)
-        }
-      }
-
-      // 选择用户
-      function selectUser(userId) {
-        currentUser = userId
-        renderUserCards()
-        updateBalanceDisplay()
-        addTransactionLog(`${sharedData.users[userId].name} を選択しました`)
-      }
-
-      // 添加咖啡购买记录
-      function addCoffee(coffeeName, price) {
-        if (isProcessing) return
-        isProcessing = true
-
-        try {
-          if (!currentUser) {
-            alert("まずユーザーを選択してください")
-            return
-          }
-
-          // 更新本地数据
-          sharedData.users[currentUser].balance += price
-
-          // 更新Firebase
-          Promise.all([
-            saveData(
-              "users/" + currentUser + "/balance",
-              sharedData.users[currentUser].balance,
-            ),
-            addTransactionLog(
-              `${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`,
-            ),
-          ]).finally(() => {
-            isProcessing = false
-          })
-
-          updateBalanceDisplay()
-        } catch (error) {
-          console.error("エラーが発生しました:", error)
-          isProcessing = false
-        }
-      }
-
-      // 支付处理
-      function makePayment(amount) {
-        if (isProcessing) return
-        isProcessing = true
-
-        try {
-          if (!currentUser) {
-            alert("まずユーザーを選択してください")
-            return
-          }
-
-          if (sharedData.users[currentUser].balance < amount) {
-            alert("残高が不足しています")
-            isProcessing = false
-            return
-          }
-
-          // 更新本地数据
-          sharedData.users[currentUser].balance -= amount
-
-          // 更新Firebase
-          Promise.all([
-            saveData(
-              "users/" + currentUser + "/balance",
-              sharedData.users[currentUser].balance,
-            ),
-            addTransactionLog(
-              `${sharedData.users[currentUser].name} が ${amount}円 支払い`,
-            ),
-          ]).finally(() => {
-            isProcessing = false
-          })
-
-          updateBalanceDisplay()
-        } catch (error) {
-          console.error("エラーが発生しました:", error)
-          isProcessing = false
-        }
-      }
-
-      // 更新余额显示
-      function updateBalanceDisplay() {
-        if (currentUser) {
-          document.getElementById("current-balance").textContent =
-            `${sharedData.users[currentUser].balance}円`
+                `;
+                
+                userDisplay.appendChild(card);
+            }
         }
 
-        // 更新所有用户卡片上的余额
-        for (const userId in sharedData.users) {
-          const balanceElement = document.querySelector(
-            `.user-balance[data-user="${userId}"]`,
-          )
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[userId].balance}円`
-          }
-        }
-      }
-
-      // 更新所有用户余额显示
-      function updateAllBalances() {
-        for (const userId in sharedData.users) {
-          const balanceElement = document.querySelector(
-            `.user-balance[data-user="${userId}"]`,
-          )
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[userId].balance}円`
-          }
+        // 选择用户
+        function selectUser(userId) {
+            currentUser = userId;
+            renderUserCards();
+            updateBalanceDisplay();
+            addTransactionLog(`${sharedData.users[userId].name} を選択しました`);
         }
 
-        if (currentUser) {
-          document.getElementById("current-balance").textContent =
-            `${sharedData.users[currentUser].balance}円`
-        }
-      }
-
-      // 添加交易记录
-      function addTransactionLog(message) {
-        const now = new Date()
-        const timestamp = now.toLocaleString("ja-JP", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        })
-
-        const newTransaction = {
-          timestamp,
-          message,
-          user: currentUser,
+        // 添加咖啡购买记录
+        function addCoffee(coffeeName, price) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            try {
+                if (!currentUser) {
+                    alert("まずユーザーを選択してください");
+                    return;
+                }
+                
+                sharedData.users[currentUser].balance += price;
+                updateBalanceDisplay();
+                addTransactionLog(
+                    `${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`
+                );
+                saveData();
+            } finally {
+                isProcessing = false;
+            }
         }
 
-        // 更新本地数据
-        sharedData.transactions.unshift(newTransaction)
-
-        // 限制记录数量
-        if (sharedData.transactions.length > 100) {
-          sharedData.transactions = sharedData.transactions.slice(0, 100)
+        // 支付处理
+        function makePayment(amount) {
+            if (isProcessing) return;
+            isProcessing = true;
+            
+            try {
+                if (!currentUser) {
+                    alert("まずユーザーを選択してください");
+                    return;
+                }
+                
+                if (sharedData.users[currentUser].balance < amount) {
+                    alert("残高が不足しています");
+                    return;
+                }
+                
+                sharedData.users[currentUser].balance -= amount;
+                updateBalanceDisplay();
+                addTransactionLog(`${sharedData.users[currentUser].name} が ${amount}円 支払い`);
+                saveData();
+            } finally {
+                isProcessing = false;
+            }
         }
 
-        // 更新Firebase
-        return saveData("transactions", sharedData.transactions).then(() => {
-          updateTransactionList()
-        })
-      }
+        // 更新余额显示
+        function updateBalanceDisplay() {
+            if (currentUser) {
+                document.getElementById("current-balance").textContent = 
+                    `${sharedData.users[currentUser].balance}円`;
+            }
+            
+            // 更新所有用户卡片上的余额
+            for (const userId in sharedData.users) {
+                const balanceElement = document.querySelector(`.user-balance[data-user="${userId}"]`);
+                if (balanceElement) {
+                    balanceElement.textContent = `${sharedData.users[userId].balance}円`;
+                }
+            }
+        }
 
-      // 更新交易记录列表
-      function updateTransactionList() {
-        const listElement = document.getElementById("transaction-list")
-        listElement.innerHTML = ""
+        // 更新所有用户余额显示
+        function updateAllBalances() {
+            for (const userId in sharedData.users) {
+                const balanceElement = document.querySelector(`.user-balance[data-user="${userId}"]`);
+                if (balanceElement) {
+                    balanceElement.textContent = `${sharedData.users[userId].balance}円`;
+                }
+            }
+            
+            if (currentUser) {
+                document.getElementById("current-balance").textContent = 
+                    `${sharedData.users[currentUser].balance}円`;
+            }
+        }
 
-        sharedData.transactions.forEach((transaction) => {
-          const entry = document.createElement("div")
-          entry.className = "log-entry"
-          entry.innerHTML = `
+        // 添加交易记录
+        function addTransactionLog(message) {
+            const now = new Date();
+            const timestamp = now.toLocaleString("ja-JP", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit"
+            });
+            
+            sharedData.transactions.unshift({
+                timestamp,
+                message,
+                user: currentUser
+            });
+            
+            // 限制记录数量
+            if (sharedData.transactions.length > 100) {
+                sharedData.transactions = sharedData.transactions.slice(0, 100);
+            }
+            
+            updateTransactionList();
+            updateMonthlyStats();
+        }
+
+        // 更新交易记录列表
+        function updateTransactionList() {
+            const listElement = document.getElementById("transaction-list");
+            listElement.innerHTML = "";
+            
+            sharedData.transactions.forEach(transaction => {
+                const entry = document.createElement("div");
+                entry.className = "log-entry";
+                entry.innerHTML = `
                     <div class="timestamp">[${transaction.timestamp}]</div>
                     <div>${transaction.message}</div>
-                `
-          listElement.appendChild(entry)
-        })
-      }
-
-      // 显示月次统计
-      function showMonthlyStats() {
-        const statsContent = document.getElementById("stats-content")
-        statsContent.innerHTML = "<p>月次統計機能は現在開発中です</p>"
-        document.getElementById("monthly-stats").style.display = "block"
-      }
-
-      // 关闭月次统计
-      function closeMonthlyStats() {
-        document.getElementById("monthly-stats").style.display = "none"
-      }
-
-      // 取消流程开始
-      function startUndoProcess() {
-        if (!currentUser) {
-          alert("まずユーザーを選択してください")
-          return
+                `;
+                listElement.appendChild(entry);
+            });
         }
 
-        const userTransactions = sharedData.transactions.filter(
-          (t) => t.user === currentUser && t.message.includes("購入"),
-        )
-
-        if (userTransactions.length === 0) {
-          alert("取消できるコーヒー購入記録がありません")
-          return
+        // 更新月次统计
+        function updateMonthlyStats() {
+            const now = new Date();
+            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+            
+            if (!sharedData.monthlyStats[currentYearMonth]) {
+                sharedData.monthlyStats[currentYearMonth] = {
+                    total: 0,
+                    users: {
+                        user1: 0,
+                        user2: 0,
+                        user3: 0,
+                        user4: 0
+                    }
+                };
+            }
+            
+            // 统计逻辑可以根据需要添加
         }
 
-        const undoList = document.getElementById("undo-coffee-list")
-        undoList.innerHTML = ""
+        // 显示月次统计
+        function showMonthlyStats() {
+            const statsContent = document.getElementById("stats-content");
+            statsContent.innerHTML = "<p>月次統計機能は現在開発中です</p>";
+            document.getElementById("monthly-stats").style.display = "block";
+        }
 
-        userTransactions.forEach((trans, index) => {
-          const transElement = document.createElement("div")
-          transElement.className = "log-entry"
-          transElement.style.cursor = "pointer"
-          transElement.style.backgroundColor =
-            selectedTransactionForUndo === index ? "#eaf2f8" : ""
-          transElement.innerHTML = `
-                    <div class="timestamp">[${trans.timestamp}]</div>
-                    <div>${trans.message}</div>
-                `
-          transElement.onclick = () => {
-            selectedTransactionForUndo = index
-            document
-              .querySelectorAll("#undo-coffee-list .log-entry")
-              .forEach((el) => {
-                el.style.backgroundColor = ""
-              })
-            transElement.style.backgroundColor = "#eaf2f8"
-          }
-          undoList.appendChild(transElement)
-        })
+        // 关闭月次统计
+        function closeMonthlyStats() {
+            document.getElementById("monthly-stats").style.display = "none";
+        }
 
-        document.getElementById("undo-ui").style.display = "block"
-        document.getElementById("start-undo-btn").style.display = "none"
-      }
-
-      // 初始化应用
-      window.onload = init
+        // 初始化应用
+        window.onload = init;
     </script>
-  </body>
+</body>
 </html>
