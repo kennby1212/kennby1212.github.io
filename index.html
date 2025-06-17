@@ -836,6 +836,7 @@
         // 当前选中的用户
         let currentUser = null;
         let isProcessing = false;
+        let selectedTransactionForUndo = -1; // 取り消し対象のトランザクションインデックス
 
         // 初始化应用
         function init() {
@@ -1102,8 +1103,6 @@
                     }
                 };
             }
-            
-            // 统计逻辑可以根据需要添加
         }
 
         // 显示月次统计
@@ -1118,8 +1117,118 @@
             document.getElementById("monthly-stats").style.display = "none";
         }
 
+        // 取り消し処理の開始
+        function startUndoProcess() {
+            if (!currentUser) {
+                alert("まずユーザーを選択してください");
+                return;
+            }
+            
+            const userTransactions = sharedData.transactions.filter(
+                t => t.user === currentUser && t.message.includes("購入")
+            );
+            
+            if (userTransactions.length === 0) {
+                alert("取消できるコーヒー購入記録がありません");
+                return;
+            }
+            
+            const undoList = document.getElementById("undo-coffee-list");
+            undoList.innerHTML = "";
+            
+            userTransactions.forEach((trans, index) => {
+                const transElement = document.createElement("div");
+                transElement.className = "log-entry";
+                transElement.style.cursor = "pointer";
+                transElement.style.backgroundColor = selectedTransactionForUndo === index ? "#eaf2f8" : "";
+                transElement.innerHTML = `
+                    <div class="timestamp">[${trans.timestamp}]</div>
+                    <div>${trans.message}</div>
+                `;
+                transElement.onclick = () => {
+                    selectedTransactionForUndo = index;
+                    document.querySelectorAll("#undo-coffee-list .log-entry").forEach(el => {
+                        el.style.backgroundColor = "";
+                    });
+                    transElement.style.backgroundColor = "#eaf2f8";
+                };
+                undoList.appendChild(transElement);
+            });
+            
+            document.getElementById("undo-ui").style.display = "block";
+            document.getElementById("start-undo-btn").style.display = "none";
+        }
+
+        // 取り消しを確定
+        function confirmUndo() {
+            if (selectedTransactionForUndo === -1) {
+                alert("取消するコーヒーを選択してください");
+                return;
+            }
+            
+            const userTransactions = sharedData.transactions.filter(
+                t => t.user === currentUser && t.message.includes("購入")
+            );
+            
+            if (selectedTransactionForUndo >= userTransactions.length) {
+                alert("無効な選択です");
+                return;
+            }
+            
+            // メッセージから価格を抽出
+            const message = userTransactions[selectedTransactionForUndo].message;
+            const priceMatch = message.match(/\((\d+)円\)/);
+            
+            if (!priceMatch) {
+                alert("価格情報が見つかりません");
+                return;
+            }
+            
+            const price = parseInt(priceMatch[1]);
+            
+            // 残高を調整
+            sharedData.users[currentUser].balance -= price;
+            
+            // トランザクションから削除
+            const transactionIndex = sharedData.transactions.findIndex(
+                t => t.timestamp === userTransactions[selectedTransactionForUndo].timestamp && 
+                     t.message === userTransactions[selectedTransactionForUndo].message
+            );
+            
+            if (transactionIndex !== -1) {
+                sharedData.transactions.splice(transactionIndex, 1);
+            }
+            
+            // UIを更新
+            updateBalanceDisplay();
+            updateTransactionList();
+            addTransactionLog(`${sharedData.users[currentUser].name} のコーヒー購入を取り消しました (${price}円)`);
+            saveData();
+            
+            // 取り消しUIをリセット
+            cancelUndo();
+        }
+
+        // 取り消しをキャンセル
+        function cancelUndo() {
+            document.getElementById("undo-ui").style.display = "none";
+            document.getElementById("start-undo-btn").style.display = "block";
+            selectedTransactionForUndo = -1;
+        }
+
+        // 全データリセットの確認
+        function confirmResetAll() {
+            if (confirm("本当に全データをリセットしますか？この操作は元に戻せません。")) {
+                resetData();
+                addTransactionLog("システム: 全データをリセットしました");
+                renderUserCards();
+                updateAllBalances();
+                updateTransactionList();
+            }
+        }
+
         // 初始化应用
         window.onload = init;
     </script>
-</body>
+  </body>
 </html>
