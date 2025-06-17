@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <title>オフィスコーヒー購入システム</title>
     <style>
         :root {
@@ -629,20 +631,41 @@
     </div>
 
       <script>
+
+          // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
+  authDomain: "coffee-ginza-kb.firebaseapp.com",
+  projectId: "coffee-ginza-kb",
+  storageBucket: "coffee-ginza-kb.firebasestorage.app",
+  messagingSenderId: "463453581877",
+  appId: "1:463453581877:web:69002929a5298f194ff77c",
+  measurementId: "G-6NVRDHQBBK"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+           const database = firebase.database();
         // 数据存储键名
-        const STORAGE_KEY = "officeCoffeeSystemData";
+      const DATA_PATH = "officeCoffeeSystem/";
         
-        // 共享数据对象结构
+ // 共享数据对象结构
         let sharedData = {
-            version: "1.0",
             users: {
                 user1: { name: "後藤なな", balance: 0 },
                 user2: { name: "彭月欣", balance: 0 },
                 user3: { name: "洪賢美", balance: 0 },
                 user4: { name: "戴沅沣", balance: 0 }
             },
-            transactions: [],
-            monthlyStats: {}
+            transactions: []
         };
 
         // 当前选中的用户
@@ -652,73 +675,54 @@
         // 初始化应用
         function init() {
             loadData();
+            setupDataListeners();
             renderUserCards();
-            updateAllBalances();
-            updateTransactionList();
         }
 
-        // 从localStorage加载数据
+        // 设置Firebase数据监听
+        function setupDataListeners() {
+            // 监听用户数据变化
+            database.ref(DATA_PATH + "users").on("value", (snapshot) => {
+                if (snapshot.exists()) {
+                    sharedData.users = snapshot.val();
+                    updateAllBalances();
+                    renderUserCards();
+                }
+            });
+
+            // 监听交易记录变化
+            database.ref(DATA_PATH + "transactions").on("value", (snapshot) => {
+                if (snapshot.exists()) {
+                    sharedData.transactions = snapshot.val();
+                    updateTransactionList();
+                }
+            });
+        }
+
+        // 从Firebase加载初始数据
         function loadData() {
-            const savedData = localStorage.getItem(STORAGE_KEY);
-            if (savedData) {
-                try {
-                    const parsedData = JSON.parse(savedData);
+            database.ref(DATA_PATH).once("value").then((snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    sharedData.users = data.users || sharedData.users;
+                    sharedData.transactions = data.transactions || [];
                     
-                    // 数据迁移和验证
-                    if (parsedData.version === sharedData.version) {
-                        sharedData = parsedData;
-                    } else {
-                        // 处理不同版本的数据结构
-                        migrateData(parsedData);
-                    }
-                } catch (e) {
-                    console.error("データ読み込みエラー:", e);
-                    resetData();
+                    updateAllBalances();
+                    renderUserCards();
+                    updateTransactionList();
                 }
-            }
+            }).catch((error) => {
+                console.error("データ読み込みエラー:", error);
+            });
         }
 
-        // 数据迁移处理
-        function migrateData(oldData) {
-            // 保留用户余额
-            for (const userId in sharedData.users) {
-                if (oldData.users && oldData.users[userId]) {
-                    sharedData.users[userId].balance = oldData.users[userId].balance || 0;
-                }
-            }
-            
-            // 迁移交易记录
-            if (oldData.transactions) {
-                sharedData.transactions = oldData.transactions.slice(0, 100); // 只保留最近的100条
-            }
-            
-            saveData();
-        }
-
-        // 保存数据到localStorage
-        function saveData() {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(sharedData));
-            } catch (e) {
-                console.error("データ保存エラー:", e);
-                alert("データの保存に失敗しました。ストレージ容量が不足している可能性があります。");
-            }
-        }
-
-        // 重置数据
-        function resetData() {
-            localStorage.removeItem(STORAGE_KEY);
-            sharedData = {
-                version: "1.0",
-                users: {
-                    user1: { name: "後藤なな", balance: 0 },
-                    user2: { name: "彭月欣", balance: 0 },
-                    user3: { name: "洪賢美", balance: 0 },
-                    user4: { name: "戴沅沣", balance: 0 }
-                },
-                transactions: [],
-                monthlyStats: {}
-            };
+        // 保存数据到Firebase
+        function saveData(path, data) {
+            return database.ref(DATA_PATH + path).set(data)
+                .catch((error) => {
+                    console.error("データ保存エラー:", error);
+                    alert("データの保存に失敗しました。ネットワーク接続を確認してください。");
+                });
         }
 
         // 渲染用户卡片
@@ -761,13 +765,20 @@
                     return;
                 }
                 
+                // 更新本地数据
                 sharedData.users[currentUser].balance += price;
+                
+                // 更新Firebase
+                Promise.all([
+                    saveData("users/" + currentUser + "/balance", sharedData.users[currentUser].balance),
+                    addTransactionLog(`${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`)
+                ]).finally(() => {
+                    isProcessing = false;
+                });
+                
                 updateBalanceDisplay();
-                addTransactionLog(
-                    `${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`
-                );
-                saveData();
-            } finally {
+            } catch (error) {
+                console.error("エラーが発生しました:", error);
                 isProcessing = false;
             }
         }
@@ -785,14 +796,24 @@
                 
                 if (sharedData.users[currentUser].balance < amount) {
                     alert("残高が不足しています");
+                    isProcessing = false;
                     return;
                 }
                 
+                // 更新本地数据
                 sharedData.users[currentUser].balance -= amount;
+                
+                // 更新Firebase
+                Promise.all([
+                    saveData("users/" + currentUser + "/balance", sharedData.users[currentUser].balance),
+                    addTransactionLog(`${sharedData.users[currentUser].name} が ${amount}円 支払い`)
+                ]).finally(() => {
+                    isProcessing = false;
+                });
+                
                 updateBalanceDisplay();
-                addTransactionLog(`${sharedData.users[currentUser].name} が ${amount}円 支払い`);
-                saveData();
-            } finally {
+            } catch (error) {
+                console.error("エラーが発生しました:", error);
                 isProcessing = false;
             }
         }
@@ -840,19 +861,25 @@
                 second: "2-digit"
             });
             
-            sharedData.transactions.unshift({
+            const newTransaction = {
                 timestamp,
                 message,
                 user: currentUser
-            });
+            };
+            
+            // 更新本地数据
+            sharedData.transactions.unshift(newTransaction);
             
             // 限制记录数量
             if (sharedData.transactions.length > 100) {
                 sharedData.transactions = sharedData.transactions.slice(0, 100);
             }
             
-            updateTransactionList();
-            updateMonthlyStats();
+            // 更新Firebase
+            return saveData("transactions", sharedData.transactions)
+                .then(() => {
+                    updateTransactionList();
+                });
         }
 
         // 更新交易记录列表
@@ -869,80 +896,6 @@
                 `;
                 listElement.appendChild(entry);
             });
-        }
-
-        // 更新月次统计
-        function updateMonthlyStats() {
-            const now = new Date();
-            const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-            
-            if (!sharedData.monthlyStats[currentYearMonth]) {
-                sharedData.monthlyStats[currentYearMonth] = {
-                    total: 0,
-                    users: {
-                        user1: 0,
-                        user2: 0,
-                        user3: 0,
-                        user4: 0
-                    }
-                };
-            }
-            
-            // 统计逻辑可以根据需要添加
-        }
-
-        // 显示月次统计
-        function showMonthlyStats() {
-            const statsContent = document.getElementById("stats-content");
-            statsContent.innerHTML = "<p>月次統計機能は現在開発中です</p>";
-            document.getElementById("monthly-stats").style.display = "block";
-        }
-
-        // 关闭月次统计
-        function closeMonthlyStats() {
-            document.getElementById("monthly-stats").style.display = "none";
-        }
-
-        // 取消流程开始
-        function startUndoProcess() {
-            if (!currentUser) {
-                alert("まずユーザーを選択してください");
-                return;
-            }
-            
-            const userTransactions = sharedData.transactions.filter(
-                t => t.user === currentUser && t.message.includes("購入")
-            );
-            
-            if (userTransactions.length === 0) {
-                alert("取消できるコーヒー購入記録がありません");
-                return;
-            }
-            
-            const undoList = document.getElementById("undo-coffee-list");
-            undoList.innerHTML = "";
-            
-            userTransactions.forEach((trans, index) => {
-                const transElement = document.createElement("div");
-                transElement.className = "log-entry";
-                transElement.style.cursor = "pointer";
-                transElement.style.backgroundColor = selectedTransactionForUndo === index ? "#eaf2f8" : "";
-                transElement.innerHTML = `
-                    <div class="timestamp">[${trans.timestamp}]</div>
-                    <div>${trans.message}</div>
-                `;
-                transElement.onclick = () => {
-                    selectedTransactionForUndo = index;
-                    document.querySelectorAll("#undo-coffee-list .log-entry").forEach(el => {
-                        el.style.backgroundColor = "";
-                    });
-                    transElement.style.backgroundColor = "#eaf2f8";
-                };
-                undoList.appendChild(transElement);
-            });
-            
-            document.getElementById("undo-ui").style.display = "block";
-            document.getElementById("start-undo-btn").style.display = "none";
         }
 
         // 初始化应用
