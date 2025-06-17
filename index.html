@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 只使用CDN方式引入Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-database.js"></script>
     <title>オフィスコーヒー購入システム</title>
     <style>
       :root {
@@ -901,842 +901,667 @@
     </div>
 
     <script>
-      // Firebase設定
-      const firebaseConfig = {
-        apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
-        authDomain: "coffee-ginza-kb.firebaseapp.com",
-        databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com/",
-        projectId: "coffee-ginza-kb",
-        storageBucket: "coffee-ginza-kb.appspot.com",
-        messagingSenderId: "463453581877",
-        appId: "1:463453581877:web:69002929a5298f194ff77c",
-        measurementId: "G-6NVRDHQBBK",
+     // Firebase設定
+const firebaseConfig = {
+  apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
+  authDomain: "coffee-ginza-kb.firebaseapp.com",
+  databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com/",
+  projectId: "coffee-ginza-kb",
+  storageBucket: "coffee-ginza-kb.appspot.com",
+  messagingSenderId: "463453581877",
+  appId: "1:463453581877:web:69002929a5298f194ff77c",
+  measurementId: "G-6NVRDHQBBK"
+};
+
+// Firebase初期化
+const app = firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
+// データパス
+const DATA_PATH = "officeCoffeeSystemData";
+
+// 共有データ
+let sharedData = {
+  version: "2.3",
+  users: {
+    user1: { name: "後藤なな", balance: 0 },
+    user2: { name: "彭月欣", balance: 0 },
+    user3: { name: "洪賢美", balance: 0 },
+    user4: { name: "戴沅沣", balance: 0 }
+  },
+  transactions: [],
+  monthlyStats: {}
+};
+
+// 現在の状態
+let currentUser = null;
+let isProcessing = false;
+let selectedTransactionForUndo = -1;
+
+// アプリ初期化
+function init() {
+  setupConnectivityMonitoring();
+  setupEventListeners();
+  loadData();
+}
+
+// 接続状態監視の設定
+function setupConnectivityMonitoring() {
+  const statusElement = document.getElementById("connection-status");
+  
+  // Firebase接続状態監視
+  const connectedRef = database.ref(".info/connected");
+  connectedRef.on("value", (snap) => {
+    if (snap.val() === true) {
+      console.log("Firebaseに接続されています");
+      statusElement.style.display = "none";
+    } else {
+      console.log("Firebaseに接続されていません");
+      statusElement.textContent = "データベースに接続できません - 最新データを表示できません";
+      statusElement.style.color = "#e74c3c";
+      statusElement.style.display = "block";
+    }
+  });
+
+  // ブラウザのオンライン/オフライン状態監視
+  window.addEventListener('online', () => {
+    statusElement.textContent = "インターネット接続を確認しました - データ同期中...";
+    statusElement.style.color = "#f39c12";
+    statusElement.style.display = "block";
+    setTimeout(() => statusElement.style.display = "none", 3000);
+  });
+
+  window.addEventListener('offline', () => {
+    statusElement.textContent = "インターネット接続がありません - 最新データを取得できません";
+    statusElement.style.color = "#e74c3c";
+    statusElement.style.display = "block";
+  });
+}
+
+// イベントリスナー設定
+function setupEventListeners() {
+  // 必要に応じて追加のイベントリスナーを設定
+}
+
+// データ読み込み
+function loadData() {
+  showLoading(true);
+  
+  // ユーザーデータの読み込み
+  database.ref(`${DATA_PATH}/users`).once('value').then((snapshot) => {
+    if (snapshot.exists()) {
+      sharedData.users = snapshot.val();
+      renderUserCards();
+      updateAllBalances();
+    }
+  }).catch((error) => {
+    console.error("ユーザーデータ読み込みエラー:", error);
+    showError("ユーザーデータの読み込みに失敗しました");
+  });
+
+  // 取引履歴の読み込み
+  database.ref(`${DATA_PATH}/transactions`).once('value').then((snapshot) => {
+    if (snapshot.exists()) {
+      sharedData.transactions = snapshot.val();
+      updateTransactionList();
+    }
+  }).catch((error) => {
+    console.error("取引履歴読み込みエラー:", error);
+    showError("取引履歴の読み込みに失敗しました");
+  });
+
+  // 月次統計の読み込み
+  database.ref(`${DATA_PATH}/monthlyStats`).once('value').then((snapshot) => {
+    if (snapshot.exists()) {
+      sharedData.monthlyStats = snapshot.val();
+    }
+    showLoading(false);
+  }).catch((error) => {
+    console.error("月次統計読み込みエラー:", error);
+    showLoading(false);
+  });
+
+  // リアルタイム更新の設定
+  setupRealtimeUpdates();
+}
+
+// リアルタイム更新の設定
+function setupRealtimeUpdates() {
+  // ユーザーデータのリアルタイム更新
+  database.ref(`${DATA_PATH}/users`).on("value", (snapshot) => {
+    if (snapshot.exists()) {
+      sharedData.users = snapshot.val();
+      renderUserCards();
+      updateAllBalances();
+    }
+  });
+
+  // 取引履歴のリアルタイム更新
+  database.ref(`${DATA_PATH}/transactions`).on("value", (snapshot) => {
+    if (snapshot.exists()) {
+      sharedData.transactions = snapshot.val();
+      updateTransactionList();
+    }
+  });
+
+  // 月次統計のリアルタイム更新
+  database.ref(`${DATA_PATH}/monthlyStats`).on("value", (snapshot) => {
+    if (snapshot.exists()) {
+      sharedData.monthlyStats = snapshot.val();
+    }
+  });
+}
+
+// データ保存
+function saveData() {
+  showLoading(true);
+  
+  const updates = {};
+  updates[`${DATA_PATH}/users`] = sharedData.users;
+  updates[`${DATA_PATH}/transactions`] = sharedData.transactions;
+  updates[`${DATA_PATH}/monthlyStats`] = sharedData.monthlyStats;
+
+  database.ref().update(updates)
+    .then(() => {
+      console.log("データを保存しました");
+      showLoading(false);
+    })
+    .catch((error) => {
+      console.error("データ保存エラー:", error);
+      showLoading(false);
+      showError("データの保存に失敗しました");
+    });
+}
+
+// ユーザーカード表示
+function renderUserCards() {
+  const userDisplay = document.querySelector(".user-display");
+  if (!userDisplay) return;
+
+  userDisplay.innerHTML = "";
+
+  for (const userId in sharedData.users) {
+    const user = sharedData.users[userId];
+    const card = document.createElement("div");
+    card.className = `user-card ${currentUser === userId ? "active-user" : ""}`;
+    card.dataset.user = userId;
+    card.onclick = () => selectUser(userId);
+
+    card.innerHTML = `
+      <div class="user-name">${user.name}</div>
+      <div class="user-balance" data-user="${userId}">${user.balance.toLocaleString()}円</div>
+    `;
+
+    userDisplay.appendChild(card);
+  }
+}
+
+// ユーザー選択
+function selectUser(userId) {
+  currentUser = userId;
+  renderUserCards();
+  updateBalanceDisplay();
+  addTransactionLog(`${sharedData.users[userId].name} を選択しました`);
+}
+
+// コーヒー購入
+function addCoffee(coffeeName, price) {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  try {
+    if (!currentUser) {
+      alert("まずユーザーを選択してください");
+      return;
+    }
+
+    // 残高更新
+    sharedData.users[currentUser].balance += price;
+
+    // 取引記録追加
+    const message = `${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`;
+    addTransactionLog(message);
+
+    // 月次統計更新
+    updateMonthlyStats(price);
+
+    // UI更新
+    updateBalanceDisplay();
+
+    // データ保存
+    saveData();
+  } finally {
+    isProcessing = false;
+  }
+}
+
+// 支払い処理
+function makePayment(amount) {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  try {
+    if (!currentUser) {
+      alert("まずユーザーを選択してください");
+      return;
+    }
+
+    // 残高チェック
+    if (sharedData.users[currentUser].balance - amount < 0) {
+      alert(
+        `支払い後の残高がマイナスになります。最大 ${sharedData.users[currentUser].balance}円 まで支払えます。`
+      );
+      return;
+    }
+
+    sharedData.users[currentUser].balance -= amount;
+
+    // 取引記録追加
+    const message = `${sharedData.users[currentUser].name} が ${amount}円 支払い`;
+    addTransactionLog(message);
+
+    // UI更新
+    updateBalanceDisplay();
+
+    // データ保存
+    saveData();
+  } finally {
+    isProcessing = false;
+  }
+}
+
+// 残高表示更新
+function updateBalanceDisplay() {
+  if (currentUser) {
+    const balanceElement = document.getElementById("current-balance");
+    if (balanceElement) {
+      balanceElement.textContent = `${sharedData.users[currentUser].balance.toLocaleString()}円`;
+    }
+  }
+
+  // 全ユーザーの残高更新
+  for (const userId in sharedData.users) {
+    const balanceElement = document.querySelector(
+      `.user-balance[data-user="${userId}"]`
+    );
+    if (balanceElement) {
+      balanceElement.textContent = `${sharedData.users[userId].balance.toLocaleString()}円`;
+    }
+  }
+}
+
+// 全残高更新
+function updateAllBalances() {
+  for (const userId in sharedData.users) {
+    const balanceElement = document.querySelector(
+      `.user-balance[data-user="${userId}"]`
+    );
+    if (balanceElement) {
+      balanceElement.textContent = `${sharedData.users[userId].balance.toLocaleString()}円`;
+    }
+  }
+
+  if (currentUser) {
+    const balanceElement = document.getElementById("current-balance");
+    if (balanceElement) {
+      balanceElement.textContent = `${sharedData.users[currentUser].balance.toLocaleString()}円`;
+    }
+  }
+}
+
+// 取引記録追加
+function addTransactionLog(message) {
+  const now = new Date();
+  const timestamp = now.toLocaleString("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+
+  const newTransaction = {
+    timestamp,
+    message,
+    user: currentUser
+  };
+
+  sharedData.transactions.unshift(newTransaction);
+
+  // 記録数制限
+  if (sharedData.transactions.length > 100) {
+    sharedData.transactions = sharedData.transactions.slice(0, 100);
+  }
+
+  updateTransactionList();
+}
+
+// 取引履歴更新
+function updateTransactionList() {
+  const listElement = document.getElementById("transaction-list");
+  if (!listElement) return;
+
+  listElement.innerHTML = "";
+
+  sharedData.transactions.forEach((transaction) => {
+    const entry = document.createElement("div");
+    entry.className = "log-entry";
+    entry.innerHTML = `
+      <div class="timestamp">[${transaction.timestamp}]</div>
+      <div>${transaction.message}</div>
+    `;
+    listElement.appendChild(entry);
+  });
+}
+
+// 月次統計更新
+function updateMonthlyStats(price) {
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // 当月データ初期化
+  if (!sharedData.monthlyStats[currentYearMonth]) {
+    sharedData.monthlyStats[currentYearMonth] = {
+      total: 0,
+      users: {
+        user1: 0,
+        user2: 0,
+        user3: 0,
+        user4: 0
       }
-
-      // アプリ状態
-      const APP_STATE = {
-        ONLINE: "online",
-        OFFLINE: "offline",
-        SYNCING: "syncing",
-      }
-
-      // Firebase初期化
-      const app = firebase.initializeApp(firebaseConfig)
-      const database = firebase.database()
-
-      // データパス
-      const DATA_PATH = "officeCoffeeSystemData"
-
-      // ローカルストレージ用キー
-      const LOCAL_STORAGE_KEY = "officeCoffeeSystem_localData"
-
-      // 共有データ
-      let sharedData = {
-        version: "2.3",
-        users: {
-          user1: { name: "後藤なな", balance: 0 },
-          user2: { name: "彭月欣", balance: 0 },
-          user3: { name: "洪賢美", balance: 0 },
-          user4: { name: "戴沅沣", balance: 0 },
-        },
-        transactions: [],
-        monthlyStats: {},
-      }
-
-      // 現在の状態
-      let currentUser = null
-      let isProcessing = false
-      let selectedTransactionForUndo = -1
-      let appState = APP_STATE.ONLINE
-      let offlineQueue = []
-      let firebaseListeners = []
-
-      // アプリ初期化
-      function init() {
-        setupConnectivityMonitoring()
-        setupEventListeners()
-        loadData()
-
-        // デバッグ用
-        setInterval(debugState, 5000)
-      }
-
-      // イベントリスナー設定
-      function setupEventListeners() {
-        const resetBtn = document.getElementById("reset-all-btn")
-        if (resetBtn) {
-          resetBtn.addEventListener("click", confirmResetAll)
-        }
-      }
-
-      // 接続状態監視の設定
-      function setupConnectivityMonitoring() {
-        window.addEventListener("online", handleConnectionChange)
-        window.addEventListener("offline", handleConnectionChange)
-        handleConnectionChange()
-
-        // Firebaseの接続状態も監視
-        setupFirebaseConnectionListener()
-      }
-
-      // Firebase接続状態リスナー
-      function setupFirebaseConnectionListener() {
-        const listener = database
-          .ref(".info/connected")
-          .on("value", (snapshot) => {
-            appState = snapshot.val() ? APP_STATE.ONLINE : APP_STATE.OFFLINE
-            updateConnectionStatusUI()
-
-            if (appState === APP_STATE.ONLINE) {
-              syncOfflineData()
-            }
-          })
-        firebaseListeners.push(listener)
-      }
-
-      // 接続状態変更処理
-      function handleConnectionChange() {
-        appState = navigator.onLine ? APP_STATE.ONLINE : APP_STATE.OFFLINE
-        updateConnectionStatusUI()
-
-        if (appState === APP_STATE.ONLINE) {
-          testConnection()
-        }
-      }
-
-      // 接続テスト
-      function testConnection() {
-        fetch("https://www.google.com", { mode: "no-cors" })
-          .then(() => {
-            console.log("インターネット接続確認")
-            setupRealtimeListeners()
-          })
-          .catch(() => {
-            console.log("インターネット接続なし")
-          })
-      }
-
-      // 接続状態UI更新
-      function updateConnectionStatusUI() {
-        const statusElement = document.getElementById("connection-status")
-        if (!statusElement) return
-
-        if (appState === APP_STATE.OFFLINE) {
-          statusElement.textContent =
-            "オフラインです（データはローカルに保存されます）"
-          statusElement.style.color = "#e74c3c"
-          statusElement.style.display = "block"
-        } else if (appState === APP_STATE.SYNCING) {
-          statusElement.textContent = "データを同期中..."
-          statusElement.style.color = "#f39c12"
-          statusElement.style.display = "block"
-        } else {
-          statusElement.style.display = "none"
-        }
-      }
-
-      // データ読み込み
-      function loadData() {
-        showLoading(true)
-
-        // まずローカルストレージから読み込み
-        loadFromLocalStorage()
-
-        // オンラインならFirebaseからも読み込み
-        if (appState === APP_STATE.ONLINE) {
-          setupRealtimeListeners()
-        } else {
-          showLoading(false)
-        }
-      }
-
-      // ローカルストレージから読み込み
-      function loadFromLocalStorage() {
-        try {
-          const localData = localStorage.getItem(LOCAL_STORAGE_KEY)
-          if (localData) {
-            const parsedData = JSON.parse(localData)
-
-            // バージョンチェック
-            if (parsedData.version === sharedData.version) {
-              sharedData = parsedData
-              renderUserCards()
-              updateAllBalances()
-              updateTransactionList()
-            }
-          }
-        } catch (e) {
-          console.error("ローカルデータ読み込みエラー:", e)
-        }
-      }
-
-      // リアルタイムリスナー設定
-      function setupRealtimeListeners() {
-        // 既存のリスナーを解除
-        removeAllListeners()
-
-        // ユーザーデータのリスナー
-        const userListener = database
-          .ref(`${DATA_PATH}/users`)
-          .on("value", (snapshot) => {
-            if (snapshot.exists()) {
-              sharedData.users = snapshot.val()
-              saveToLocalStorage()
-              renderUserCards()
-              updateAllBalances()
-            }
-          })
-        firebaseListeners.push(userListener)
-
-        // 取引履歴のリスナー
-        const transactionListener = database
-          .ref(`${DATA_PATH}/transactions`)
-          .on("value", (snapshot) => {
-            if (snapshot.exists()) {
-              sharedData.transactions = snapshot.val()
-              saveToLocalStorage()
-              updateTransactionList()
-            }
-          })
-        firebaseListeners.push(transactionListener)
-
-        // 月次統計のリスナー
-        const statsListener = database
-          .ref(`${DATA_PATH}/monthlyStats`)
-          .on("value", (snapshot) => {
-            if (snapshot.exists()) {
-              sharedData.monthlyStats = snapshot.val()
-              saveToLocalStorage()
-            }
-          })
-        firebaseListeners.push(statsListener)
-
-        showLoading(false)
-      }
-
-      // リスナーを全て解除
-      function removeAllListeners() {
-        firebaseListeners.forEach((listener) => {
-          database.ref().off(listener)
-        })
-        firebaseListeners = []
-      }
-
-      // ローカルストレージに保存
-      function saveToLocalStorage() {
-        try {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sharedData))
-        } catch (e) {
-          console.error("ローカルストレージ保存エラー:", e)
-          showError("ローカルデータの保存に失敗しました")
-        }
-      }
-
-      // データ保存（オンライン/オフライン対応）
-      function saveData() {
-        // ローカルには常に保存
-        saveToLocalStorage()
-
-        // オンライン時はFirebaseにも保存
-        if (appState === APP_STATE.ONLINE) {
-          saveToFirebase()
-        } else {
-          // オフライン時はキューに追加
-          offlineQueue.push({
-            type: "fullUpdate",
-            data: sharedData,
-            timestamp: new Date().getTime(),
-          })
-        }
-      }
-
-      // Firebaseに保存
-      function saveToFirebase() {
-        showLoading(true)
-        appState = APP_STATE.SYNCING
-        updateConnectionStatusUI()
-
-        const updates = {}
-        updates[`${DATA_PATH}/users`] = sharedData.users
-        updates[`${DATA_PATH}/transactions`] = sharedData.transactions
-        updates[`${DATA_PATH}/monthlyStats`] = sharedData.monthlyStats
-
-        database
-          .ref()
-          .update(updates)
-          .then(() => {
-            console.log("Firebaseにデータを保存しました")
-            appState = APP_STATE.ONLINE
-            updateConnectionStatusUI()
-            showLoading(false)
-          })
-          .catch((error) => {
-            console.error("Firebase保存エラー:", error)
-            appState = APP_STATE.OFFLINE
-            updateConnectionStatusUI()
-            showLoading(false)
-            showError(
-              "データの保存に失敗しました。オフラインモードで続行します。",
-            )
-
-            // 失敗したデータをオフラインキューに追加
-            offlineQueue.push({
-              type: "fullUpdate",
-              data: sharedData,
-              timestamp: new Date().getTime(),
-            })
-          })
-      }
-
-      // オフラインデータの同期
-      function syncOfflineData() {
-        if (offlineQueue.length === 0 || appState !== APP_STATE.ONLINE) return
-
-        appState = APP_STATE.SYNCING
-        updateConnectionStatusUI()
-        showLoading(true)
-
-        const item = offlineQueue[0] // 最初のアイテムを取得（削除は成功時のみ）
-
-        if (item.type === "fullUpdate") {
-          const updates = {}
-          updates[`${DATA_PATH}/users`] = item.data.users
-          updates[`${DATA_PATH}/transactions`] = item.data.transactions
-          updates[`${DATA_PATH}/monthlyStats`] = item.data.monthlyStats
-
-          database
-            .ref()
-            .update(updates)
-            .then(() => {
-              console.log("オフラインデータを同期しました")
-              offlineQueue.shift() // 成功したらキューから削除
-
-              if (offlineQueue.length > 0) {
-                syncOfflineData() // 次のアイテムを処理
-              } else {
-                appState = APP_STATE.ONLINE
-                updateConnectionStatusUI()
-                showLoading(false)
-              }
-            })
-            .catch((error) => {
-              console.error("オフラインデータ同期エラー:", error)
-              appState = APP_STATE.ONLINE
-              updateConnectionStatusUI()
-              showLoading(false)
-            })
-        }
-      }
-
-      // エラー表示
-      function showError(message) {
-        const errorElement = document.getElementById("error-message")
-        if (!errorElement) return
-
-        errorElement.textContent = message
-        errorElement.style.display = "block"
-
-        setTimeout(() => {
-          errorElement.style.display = "none"
-        }, 5000)
-      }
-
-      // ローディング表示
-      function showLoading(show) {
-        const loadingElement = document.getElementById("loading-indicator")
-        if (loadingElement) {
-          loadingElement.style.display = show ? "block" : "none"
-        }
-      }
-
-      // ユーザーカード表示
-      function renderUserCards() {
-        const userDisplay = document.querySelector(".user-display")
-        if (!userDisplay) return
-
-        userDisplay.innerHTML = ""
-
-        for (const userId in sharedData.users) {
-          const user = sharedData.users[userId]
-          const card = document.createElement("div")
-          card.className = `user-card ${currentUser === userId ? "active-user" : ""}`
-          card.dataset.user = userId
-          card.onclick = () => selectUser(userId)
-
-          card.innerHTML = `
-            <div class="user-name">${user.name}</div>
-            <div class="user-balance" data-user="${userId}">${user.balance.toLocaleString()}円</div>
-        `
-
-          userDisplay.appendChild(card)
-        }
-      }
-
-      // ユーザー選択
-      function selectUser(userId) {
-        currentUser = userId
-        renderUserCards()
-        updateBalanceDisplay()
-        addTransactionLog(`${sharedData.users[userId].name} を選択しました`)
-      }
-
-      // コーヒー購入（オフライン対応版）
-      function addCoffee(coffeeName, price) {
-        if (isProcessing) return
-        isProcessing = true
-
-        try {
-          if (!currentUser) {
-            alert("まずユーザーを選択してください")
-            return
-          }
-
-          // 残高更新
-          sharedData.users[currentUser].balance += price
-
-          // 取引記録追加
-          const message = `${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`
-          addTransactionLog(message)
-
-          // 月次統計更新
-          updateMonthlyStats(price)
-
-          // UI更新
-          updateBalanceDisplay()
-
-          // データ保存
-          saveData()
-        } finally {
-          isProcessing = false
-        }
-      }
-
-      // 支払い処理（オフライン対応版）
-      function makePayment(amount) {
-        if (isProcessing) return
-        isProcessing = true
-
-        try {
-          if (!currentUser) {
-            alert("まずユーザーを選択してください")
-            return
-          }
-
-          // 残高チェック
-          if (sharedData.users[currentUser].balance - amount < 0) {
-            alert(
-              `支払い後の残高がマイナスになります。最大 ${sharedData.users[currentUser].balance}円 まで支払えます。`,
-            )
-            return
-          }
-
-          sharedData.users[currentUser].balance -= amount
-
-          // 取引記録追加
-          const message = `${sharedData.users[currentUser].name} が ${amount}円 支払い`
-          addTransactionLog(message)
-
-          // UI更新
-          updateBalanceDisplay()
-
-          // データ保存
-          saveData()
-        } finally {
-          isProcessing = false
-        }
-      }
-
-      // 残高表示更新
-      function updateBalanceDisplay() {
-        if (currentUser) {
-          const balanceElement = document.getElementById("current-balance")
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[currentUser].balance.toLocaleString()}円`
-          }
-        }
-
-        // 全ユーザーの残高更新
-        for (const userId in sharedData.users) {
-          const balanceElement = document.querySelector(
-            `.user-balance[data-user="${userId}"]`,
-          )
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[userId].balance.toLocaleString()}円`
-          }
-        }
-      }
-
-      // 全残高更新
-      function updateAllBalances() {
-        for (const userId in sharedData.users) {
-          const balanceElement = document.querySelector(
-            `.user-balance[data-user="${userId}"]`,
-          )
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[userId].balance.toLocaleString()}円`
-          }
-        }
-
-        if (currentUser) {
-          const balanceElement = document.getElementById("current-balance")
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[currentUser].balance.toLocaleString()}円`
-          }
-        }
-      }
-
-      // 取引記録追加
-      function addTransactionLog(message) {
-        const now = new Date()
-        const timestamp = now.toLocaleString("ja-JP", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        })
-
-        const newTransaction = {
-          timestamp,
-          message,
-          user: currentUser,
-        }
-
-        sharedData.transactions.unshift(newTransaction)
-
-        // 記録数制限
-        if (sharedData.transactions.length > 100) {
-          sharedData.transactions = sharedData.transactions.slice(0, 100)
-        }
-
-        updateTransactionList()
-      }
-
-      // 取引履歴更新
-      function updateTransactionList() {
-        const listElement = document.getElementById("transaction-list")
-        if (!listElement) return
-
-        listElement.innerHTML = ""
-
-        sharedData.transactions.forEach((transaction) => {
-          const entry = document.createElement("div")
-          entry.className = "log-entry"
-          entry.innerHTML = `
-            <div class="timestamp">[${transaction.timestamp}]</div>
-            <div>${transaction.message}</div>
-        `
-          listElement.appendChild(entry)
-        })
-      }
-
-      // 月次統計更新
-      function updateMonthlyStats(price) {
-        const now = new Date()
-        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-
-        // 当月データ初期化
-        if (!sharedData.monthlyStats[currentYearMonth]) {
-          sharedData.monthlyStats[currentYearMonth] = {
-            total: 0,
-            users: {
-              user1: 0,
-              user2: 0,
-              user3: 0,
-              user4: 0,
-            },
-          }
-        }
-
-        // 統計更新
-        sharedData.monthlyStats[currentYearMonth].total += price
-        sharedData.monthlyStats[currentYearMonth].users[currentUser] += price
-      }
-
-      // 取消処理開始
-      function startUndoProcess() {
-        if (!currentUser) {
-          alert("まずユーザーを選択してください")
-          return
-        }
-
-        const userTransactions = sharedData.transactions.filter(
-          (t) => t.user === currentUser && t.message.includes("購入"),
-        )
-
-        if (userTransactions.length === 0) {
-          alert("取消できるコーヒー購入記録がありません")
-          return
-        }
-
-        const undoList = document.getElementById("undo-coffee-list")
-        if (!undoList) return
-
-        undoList.innerHTML = ""
-
-        userTransactions.forEach((trans, index) => {
-          const transElement = document.createElement("div")
-          transElement.className = "log-entry"
-          transElement.style.cursor = "pointer"
-          transElement.style.backgroundColor =
-            selectedTransactionForUndo === index ? "#eaf2f8" : ""
-          transElement.innerHTML = `
-            <div class="timestamp">[${trans.timestamp}]</div>
-            <div>${trans.message}</div>
-        `
-          transElement.onclick = () => {
-            selectedTransactionForUndo = index
-            document
-              .querySelectorAll("#undo-coffee-list .log-entry")
-              .forEach((el) => {
-                el.style.backgroundColor = ""
-              })
-            transElement.style.backgroundColor = "#eaf2f8"
-          }
-          undoList.appendChild(transElement)
-        })
-
-        document.getElementById("undo-ui").style.display = "block"
-        document.getElementById("start-undo-btn").style.display = "none"
-      }
-
-      // 取消確定
-      function confirmUndo() {
-        if (selectedTransactionForUndo === -1) {
-          alert("取消するコーヒーを選択してください")
-          return
-        }
-
-        const userTransactions = sharedData.transactions.filter(
-          (t) => t.user === currentUser && t.message.includes("購入"),
-        )
-
-        if (selectedTransactionForUndo >= userTransactions.length) {
-          alert("無効な選択です")
-          return
-        }
-
-        if (!confirm("本当にこの購入記録を取り消しますか？")) {
-          return
-        }
-
-        const message = userTransactions[selectedTransactionForUndo].message
-        const priceMatch = message.match(/\((\d+)円\)/)
-
-        if (!priceMatch) {
-          alert("価格情報が見つかりません")
-          return
-        }
-
-        const price = parseInt(priceMatch[1])
-
-        if (sharedData.users[currentUser].balance - price < 0) {
-          alert("取消すると残高がマイナスになります。取消できません。")
-          return
-        }
-
-        // 残高調整
-        sharedData.users[currentUser].balance -= price
-
-        // 取引記録削除
-        const transactionIndex = sharedData.transactions.findIndex(
-          (t) =>
-            t.timestamp ===
-              userTransactions[selectedTransactionForUndo].timestamp &&
-            t.message === userTransactions[selectedTransactionForUndo].message,
-        )
-
-        if (transactionIndex !== -1) {
-          sharedData.transactions.splice(transactionIndex, 1)
-        }
-
-        // 統計更新
-        updateMonthlyStatsAfterUndo(price)
-
-        // UI更新
-        updateBalanceDisplay()
-        updateTransactionList()
-        addTransactionLog(
-          `${sharedData.users[currentUser].name} のコーヒー購入を取り消しました (${price}円)`,
-        )
-
-        // データ保存
-        saveData()
-
-        // 取消UIリセット
-        cancelUndo()
-      }
-
-      // 取消後の月次統計更新
-      function updateMonthlyStatsAfterUndo(price) {
-        const now = new Date()
-        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-
-        if (sharedData.monthlyStats[currentYearMonth]) {
-          sharedData.monthlyStats[currentYearMonth].total = Math.max(
-            0,
-            sharedData.monthlyStats[currentYearMonth].total - price,
-          )
-
-          if (
-            sharedData.monthlyStats[currentYearMonth].users[currentUser] !==
-            undefined
-          ) {
-            sharedData.monthlyStats[currentYearMonth].users[currentUser] =
-              Math.max(
-                0,
-                sharedData.monthlyStats[currentYearMonth].users[currentUser] -
-                  price,
-              )
-          }
-        }
-      }
-
-      // 取消キャンセル
-      function cancelUndo() {
-        document.getElementById("undo-ui").style.display = "none"
-        document.getElementById("start-undo-btn").style.display = "block"
-        selectedTransactionForUndo = -1
-      }
-
-      // 月別統計表示
-      function showMonthlyStats() {
-        const statsContent = document.getElementById("stats-content")
-        if (!statsContent) return
-
-        const months = Object.keys(sharedData.monthlyStats).sort().reverse()
-
-        if (months.length === 0) {
-          statsContent.innerHTML = "<p>統計データがありません</p>"
-        } else {
-          statsContent.innerHTML = `
-            <div class="month-selector">
-                <select id="month-select" onchange="updateStatsDisplay()">
-                    ${months
-                      .map(
-                        (month) => `
-                        <option value="${month}">${month.replace("-", "年")}月</option>
-                    `,
-                      )
-                      .join("")}
-                </select>
-            </div>
-            <div id="stats-details"></div>
-        `
-          updateStatsDisplay()
-        }
-
-        document.getElementById("monthly-stats").style.display = "block"
-      }
-
-      // 統計表示更新
-      function updateStatsDisplay() {
-        const monthSelect = document.getElementById("month-select")
-        const selectedMonth = monthSelect
-          ? monthSelect.value
-          : Object.keys(sharedData.monthlyStats).sort().reverse()[0]
-        const stats = sharedData.monthlyStats[selectedMonth]
-        const statsDetails = document.getElementById("stats-details")
-
-        if (!stats || !statsDetails) return
-
-        let html = `
-        <table class="stats-table">
-            <tr>
-                <th>ユーザー</th>
-                <th>利用金額</th>
-                <th>割合</th>
-            </tr>
-            <tr class="total-row">
-                <td><strong>合計</strong></td>
-                <td><strong>${stats.total.toLocaleString()}円</strong></td>
-                <td><strong>100%</strong></td>
-            </tr>
-    `
-
-        for (const userId in stats.users) {
-          const user = sharedData.users[userId]
-          const amount = stats.users[userId]
-          const percentage =
-            stats.total > 0 ? Math.round((amount / stats.total) * 100) : 0
-
-          html += `
-            <tr>
-                <td>${user.name}</td>
-                <td>${amount.toLocaleString()}円</td>
-                <td>${percentage}%</td>
-            </tr>
-        `
-        }
-
-        html += `</table>`
-        statsDetails.innerHTML = html
-      }
-
-      // 統計閉じる
-      function closeMonthlyStats() {
-        const statsElement = document.getElementById("monthly-stats")
-        if (statsElement) {
-          statsElement.style.display = "none"
-        }
-      }
-
-      // 全データリセット確認
-      function confirmResetAll() {
-        if (
-          confirm(
-            "本当に全データをリセットしますか？この操作は元に戻せません。",
-          )
-        ) {
-          resetData()
-        }
-      }
-
-      // データリセット
-      function resetData() {
-        sharedData = {
-          version: "2.3",
-          users: {
-            user1: { name: "後藤なな", balance: 0 },
-            user2: { name: "彭月欣", balance: 0 },
-            user3: { name: "洪賢美", balance: 0 },
-            user4: { name: "戴沅沣", balance: 0 },
-          },
-          transactions: [],
-          monthlyStats: {},
-        }
-
-        // データ保存
-        saveData()
-
-        addTransactionLog("システム: 全データをリセットしました")
-        renderUserCards()
-        updateAllBalances()
-        updateTransactionList()
-      }
-
-      // デバッグ情報表示
-      function debugState() {
-        console.log("現在の状態:")
-        console.log("- App State:", appState)
-        console.log("- Current User:", currentUser)
-        console.log("- Users Data:", sharedData.users)
-        console.log("- Transactions:", sharedData.transactions.length)
-        console.log("- Monthly Stats:", sharedData.monthlyStats)
-        console.log("- Offline Queue:", offlineQueue.length)
-
-        // 5秒ごとにローカルストレージの内容も表示
-        if (localStorage.getItem(LOCAL_STORAGE_KEY)) {
-          console.log(
-            "ローカルストレージデータ:",
-            JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)),
-          )
-        }
-      }
-
-      // アプリ起動
-      window.onload = init
+    };
+  }
+
+  // 統計更新
+  sharedData.monthlyStats[currentYearMonth].total += price;
+  sharedData.monthlyStats[currentYearMonth].users[currentUser] += price;
+}
+
+// 取消処理開始
+function startUndoProcess() {
+  if (!currentUser) {
+    alert("まずユーザーを選択してください");
+    return;
+  }
+
+  const userTransactions = sharedData.transactions.filter(
+    (t) => t.user === currentUser && t.message.includes("購入")
+  );
+
+  if (userTransactions.length === 0) {
+    alert("取消できるコーヒー購入記録がありません");
+    return;
+  }
+
+  const undoList = document.getElementById("undo-coffee-list");
+  if (!undoList) return;
+
+  undoList.innerHTML = "";
+
+  userTransactions.forEach((trans, index) => {
+    const transElement = document.createElement("div");
+    transElement.className = "log-entry";
+    transElement.style.cursor = "pointer";
+    transElement.style.backgroundColor =
+      selectedTransactionForUndo === index ? "#eaf2f8" : "";
+    transElement.innerHTML = `
+      <div class="timestamp">[${trans.timestamp}]</div>
+      <div>${trans.message}</div>
+    `;
+    transElement.onclick = () => {
+      selectedTransactionForUndo = index;
+      document
+        .querySelectorAll("#undo-coffee-list .log-entry")
+        .forEach((el) => {
+          el.style.backgroundColor = "";
+        });
+      transElement.style.backgroundColor = "#eaf2f8";
+    };
+    undoList.appendChild(transElement);
+  });
+
+  document.getElementById("undo-ui").style.display = "block";
+  document.getElementById("start-undo-btn").style.display = "none";
+}
+
+// 取消確定
+function confirmUndo() {
+  if (selectedTransactionForUndo === -1) {
+    alert("取消するコーヒーを選択してください");
+    return;
+  }
+
+  const userTransactions = sharedData.transactions.filter(
+    (t) => t.user === currentUser && t.message.includes("購入")
+  );
+
+  if (selectedTransactionForUndo >= userTransactions.length) {
+    alert("無効な選択です");
+    return;
+  }
+
+  if (!confirm("本当にこの購入記録を取り消しますか？")) {
+    return;
+  }
+
+  const message = userTransactions[selectedTransactionForUndo].message;
+  const priceMatch = message.match(/\((\d+)円\)/);
+
+  if (!priceMatch) {
+    alert("価格情報が見つかりません");
+    return;
+  }
+
+  const price = parseInt(priceMatch[1]);
+
+  if (sharedData.users[currentUser].balance - price < 0) {
+    alert("取消すると残高がマイナスになります。取消できません。");
+    return;
+  }
+
+  // 残高調整
+  sharedData.users[currentUser].balance -= price;
+
+  // 取引記録削除
+  const transactionIndex = sharedData.transactions.findIndex(
+    (t) =>
+      t.timestamp === userTransactions[selectedTransactionForUndo].timestamp &&
+      t.message === userTransactions[selectedTransactionForUndo].message
+  );
+
+  if (transactionIndex !== -1) {
+    sharedData.transactions.splice(transactionIndex, 1);
+  }
+
+  // 統計更新
+  updateMonthlyStatsAfterUndo(price);
+
+  // UI更新
+  updateBalanceDisplay();
+  updateTransactionList();
+  addTransactionLog(
+    `${sharedData.users[currentUser].name} のコーヒー購入を取り消しました (${price}円)`
+  );
+
+  // データ保存
+  saveData();
+
+  // 取消UIリセット
+  cancelUndo();
+}
+
+// 取消後の月次統計更新
+function updateMonthlyStatsAfterUndo(price) {
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  if (sharedData.monthlyStats[currentYearMonth]) {
+    sharedData.monthlyStats[currentYearMonth].total = Math.max(
+      0,
+      sharedData.monthlyStats[currentYearMonth].total - price
+    );
+
+    if (
+      sharedData.monthlyStats[currentYearMonth].users[currentUser] !==
+      undefined
+    ) {
+      sharedData.monthlyStats[currentYearMonth].users[currentUser] =
+        Math.max(
+          0,
+          sharedData.monthlyStats[currentYearMonth].users[currentUser] -
+            price
+        );
+    }
+  }
+}
+
+// 取消キャンセル
+function cancelUndo() {
+  document.getElementById("undo-ui").style.display = "none";
+  document.getElementById("start-undo-btn").style.display = "block";
+  selectedTransactionForUndo = -1;
+}
+
+// 月別統計表示
+function showMonthlyStats() {
+  const statsContent = document.getElementById("stats-content");
+  if (!statsContent) return;
+
+  const months = Object.keys(sharedData.monthlyStats).sort().reverse();
+
+  if (months.length === 0) {
+    statsContent.innerHTML = "<p>統計データがありません</p>";
+  } else {
+    statsContent.innerHTML = `
+      <div class="month-selector">
+          <select id="month-select" onchange="updateStatsDisplay()">
+              ${months
+                .map(
+                  (month) => `
+                  <option value="${month}">${month.replace("-", "年")}月</option>
+              `
+                )
+                .join("")}
+          </select>
+      </div>
+      <div id="stats-details"></div>
+    `;
+    updateStatsDisplay();
+  }
+
+  document.getElementById("monthly-stats").style.display = "block";
+}
+
+// 統計表示更新
+function updateStatsDisplay() {
+  const monthSelect = document.getElementById("month-select");
+  const selectedMonth = monthSelect
+    ? monthSelect.value
+    : Object.keys(sharedData.monthlyStats).sort().reverse()[0];
+  const stats = sharedData.monthlyStats[selectedMonth];
+  const statsDetails = document.getElementById("stats-details");
+
+  if (!stats || !statsDetails) return;
+
+  let html = `
+    <table class="stats-table">
+        <tr>
+            <th>ユーザー</th>
+            <th>利用金額</th>
+            <th>割合</th>
+        </tr>
+        <tr class="total-row">
+            <td><strong>合計</strong></td>
+            <td><strong>${stats.total.toLocaleString()}円</strong></td>
+            <td><strong>100%</strong></td>
+        </tr>
+  `;
+
+  for (const userId in stats.users) {
+    const user = sharedData.users[userId];
+    const amount = stats.users[userId];
+    const percentage =
+      stats.total > 0 ? Math.round((amount / stats.total) * 100) : 0;
+
+    html += `
+      <tr>
+          <td>${user.name}</td>
+          <td>${amount.toLocaleString()}円</td>
+          <td>${percentage}%</td>
+      </tr>
+    `;
+  }
+
+  html += `</table>`;
+  statsDetails.innerHTML = html;
+}
+
+// 統計閉じる
+function closeMonthlyStats() {
+  const statsElement = document.getElementById("monthly-stats");
+  if (statsElement) {
+    statsElement.style.display = "none";
+  }
+}
+
+// 全データリセット確認
+function confirmResetAll() {
+  if (
+    confirm(
+      "本当に全データをリセットしますか？この操作は元に戻せません。"
+    )
+  ) {
+    resetData();
+  }
+}
+
+// データリセット
+function resetData() {
+  sharedData = {
+    version: "2.3",
+    users: {
+      user1: { name: "後藤なな", balance: 0 },
+      user2: { name: "彭月欣", balance: 0 },
+      user3: { name: "洪賢美", balance: 0 },
+      user4: { name: "戴沅沣", balance: 0 }
+    },
+    transactions: [],
+    monthlyStats: {}
+  };
+
+  // データ保存
+  saveData();
+
+  addTransactionLog("システム: 全データをリセットしました");
+  renderUserCards();
+  updateAllBalances();
+  updateTransactionList();
+}
+
+// エラー表示
+function showError(message) {
+  const errorElement = document.getElementById("error-message");
+  if (!errorElement) return;
+
+  errorElement.textContent = message;
+  errorElement.style.display = "block";
+
+  setTimeout(() => {
+    errorElement.style.display = "none";
+  }, 5000);
+}
+
+// ローディング表示
+function showLoading(show) {
+  const loadingElement = document.getElementById("loading-indicator");
+  if (loadingElement) {
+    loadingElement.style.display = show ? "block" : "none";
+  }
+}
+
+// アプリ起動
+window.onload = init;
     </script>
   </body>
 </html>
