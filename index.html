@@ -424,7 +424,7 @@
     </style>
   </head>
   <body>
-    <!-- bodyタグの先頭あたりに追加 -->
+    <!-- 接続状態表示 -->
     <div
       id="connection-status"
       style="
@@ -439,6 +439,8 @@
         z-index: 1000;
       "
     ></div>
+
+    <!-- エラーメッセージ表示 -->
     <div
       id="error-message"
       style="
@@ -454,6 +456,8 @@
         z-index: 1000;
       "
     ></div>
+
+    <!-- ローディング表示 -->
     <div
       id="loading-indicator"
       style="
@@ -463,22 +467,17 @@
         left: 50%;
         transform: translate(-50%, -50%);
         z-index: 1001;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 20px;
+        border-radius: 5px;
       "
     >
+      処理中...
       <div
-        style="
-          padding: 20px;
-          background-color: rgba(0, 0, 0, 0.7);
-          color: white;
-          border-radius: 5px;
-        "
-      >
-        処理中...
-        <div
-          class="spinner"
-          style="display: inline-block; margin-left: 10px"
-        ></div>
-      </div>
+        class="spinner"
+        style="display: inline-block; margin-left: 10px"
+      ></div>
     </div>
     <div class="container">
       <h1>オフィスコーヒー購入システム</h1>
@@ -906,9 +905,9 @@
       const firebaseConfig = {
         apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
         authDomain: "coffee-ginza-kb.firebaseapp.com",
-        databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com",
+        databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com/",
         projectId: "coffee-ginza-kb",
-        storageBucket: "coffee-ginza-kb.firebasestorage.app",
+        storageBucket: "coffee-ginza-kb.appspot.com",
         messagingSenderId: "463453581877",
         appId: "1:463453581877:web:69002929a5298f194ff77c",
         measurementId: "G-6NVRDHQBBK",
@@ -921,7 +920,7 @@
         SYNCING: "syncing",
       }
 
-      // 初期化コード
+      // Firebase初期化
       const app = firebase.initializeApp(firebaseConfig)
       const database = firebase.database()
 
@@ -933,7 +932,7 @@
 
       // 共有データ
       let sharedData = {
-        version: "2.2",
+        version: "2.3",
         users: {
           user1: { name: "後藤なな", balance: 0 },
           user2: { name: "彭月欣", balance: 0 },
@@ -950,19 +949,24 @@
       let selectedTransactionForUndo = -1
       let appState = APP_STATE.ONLINE
       let offlineQueue = []
+      let firebaseListeners = []
 
       // アプリ初期化
       function init() {
         setupConnectivityMonitoring()
         setupEventListeners()
         loadData()
+
+        // デバッグ用
+        setInterval(debugState, 5000)
       }
 
       // イベントリスナー設定
       function setupEventListeners() {
-        document
-          .getElementById("reset-all-btn")
-          .addEventListener("click", confirmResetAll)
+        const resetBtn = document.getElementById("reset-all-btn")
+        if (resetBtn) {
+          resetBtn.addEventListener("click", confirmResetAll)
+        }
       }
 
       // 接続状態監視の設定
@@ -970,18 +974,46 @@
         window.addEventListener("online", handleConnectionChange)
         window.addEventListener("offline", handleConnectionChange)
         handleConnectionChange()
+
+        // Firebaseの接続状態も監視
+        setupFirebaseConnectionListener()
+      }
+
+      // Firebase接続状態リスナー
+      function setupFirebaseConnectionListener() {
+        const listener = database
+          .ref(".info/connected")
+          .on("value", (snapshot) => {
+            appState = snapshot.val() ? APP_STATE.ONLINE : APP_STATE.OFFLINE
+            updateConnectionStatusUI()
+
+            if (appState === APP_STATE.ONLINE) {
+              syncOfflineData()
+            }
+          })
+        firebaseListeners.push(listener)
       }
 
       // 接続状態変更処理
       function handleConnectionChange() {
-        const wasOffline = appState === APP_STATE.OFFLINE
         appState = navigator.onLine ? APP_STATE.ONLINE : APP_STATE.OFFLINE
-
-        if (appState === APP_STATE.ONLINE && wasOffline) {
-          syncOfflineData()
-        }
-
         updateConnectionStatusUI()
+
+        if (appState === APP_STATE.ONLINE) {
+          testConnection()
+        }
+      }
+
+      // 接続テスト
+      function testConnection() {
+        fetch("https://www.google.com", { mode: "no-cors" })
+          .then(() => {
+            console.log("インターネット接続確認")
+            setupRealtimeListeners()
+          })
+          .catch(() => {
+            console.log("インターネット接続なし")
+          })
       }
 
       // 接続状態UI更新
@@ -1012,7 +1044,7 @@
 
         // オンラインならFirebaseからも読み込み
         if (appState === APP_STATE.ONLINE) {
-          loadFromFirebase()
+          setupRealtimeListeners()
         } else {
           showLoading(false)
         }
@@ -1038,35 +1070,56 @@
         }
       }
 
-      // Firebaseから読み込み
-      function loadFromFirebase() {
-        database
-          .ref(DATA_PATH)
-          .once("value")
-          .then((snapshot) => {
+      // リアルタイムリスナー設定
+      function setupRealtimeListeners() {
+        // 既存のリスナーを解除
+        removeAllListeners()
+
+        // ユーザーデータのリスナー
+        const userListener = database
+          .ref(`${DATA_PATH}/users`)
+          .on("value", (snapshot) => {
             if (snapshot.exists()) {
-              const firebaseData = snapshot.val()
-
-              // バージョンチェック
-              if (firebaseData.version === sharedData.version) {
-                sharedData = firebaseData
-                saveToLocalStorage()
-
-                renderUserCards()
-                updateAllBalances()
-                updateTransactionList()
-              }
+              sharedData.users = snapshot.val()
+              saveToLocalStorage()
+              renderUserCards()
+              updateAllBalances()
             }
+          })
+        firebaseListeners.push(userListener)
 
-            showLoading(false)
+        // 取引履歴のリスナー
+        const transactionListener = database
+          .ref(`${DATA_PATH}/transactions`)
+          .on("value", (snapshot) => {
+            if (snapshot.exists()) {
+              sharedData.transactions = snapshot.val()
+              saveToLocalStorage()
+              updateTransactionList()
+            }
           })
-          .catch((error) => {
-            console.error("Firebaseデータ読み込みエラー:", error)
-            showLoading(false)
-            showError(
-              "データの読み込みに失敗しました。オフラインモードで続行します。",
-            )
+        firebaseListeners.push(transactionListener)
+
+        // 月次統計のリスナー
+        const statsListener = database
+          .ref(`${DATA_PATH}/monthlyStats`)
+          .on("value", (snapshot) => {
+            if (snapshot.exists()) {
+              sharedData.monthlyStats = snapshot.val()
+              saveToLocalStorage()
+            }
           })
+        firebaseListeners.push(statsListener)
+
+        showLoading(false)
+      }
+
+      // リスナーを全て解除
+      function removeAllListeners() {
+        firebaseListeners.forEach((listener) => {
+          database.ref().off(listener)
+        })
+        firebaseListeners = []
       }
 
       // ローカルストレージに保存
@@ -1075,9 +1128,7 @@
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sharedData))
         } catch (e) {
           console.error("ローカルストレージ保存エラー:", e)
-          showError(
-            "ローカルデータの保存に失敗しました。データが失われる可能性があります。",
-          )
+          showError("ローカルデータの保存に失敗しました")
         }
       }
 
@@ -1105,9 +1156,14 @@
         appState = APP_STATE.SYNCING
         updateConnectionStatusUI()
 
+        const updates = {}
+        updates[`${DATA_PATH}/users`] = sharedData.users
+        updates[`${DATA_PATH}/transactions`] = sharedData.transactions
+        updates[`${DATA_PATH}/monthlyStats`] = sharedData.monthlyStats
+
         database
-          .ref(DATA_PATH)
-          .set(sharedData)
+          .ref()
+          .update(updates)
           .then(() => {
             console.log("Firebaseにデータを保存しました")
             appState = APP_STATE.ONLINE
@@ -1143,9 +1199,14 @@
         const item = offlineQueue[0] // 最初のアイテムを取得（削除は成功時のみ）
 
         if (item.type === "fullUpdate") {
+          const updates = {}
+          updates[`${DATA_PATH}/users`] = item.data.users
+          updates[`${DATA_PATH}/transactions`] = item.data.transactions
+          updates[`${DATA_PATH}/monthlyStats`] = item.data.monthlyStats
+
           database
-            .ref(DATA_PATH)
-            .set(item.data)
+            .ref()
+            .update(updates)
             .then(() => {
               console.log("オフラインデータを同期しました")
               offlineQueue.shift() // 成功したらキューから削除
@@ -1244,19 +1305,7 @@
           updateBalanceDisplay()
 
           // データ保存
-          if (appState === APP_STATE.ONLINE) {
-            saveData()
-          } else {
-            // オフライン時は変更のみをキューに追加
-            offlineQueue.push({
-              type: "addCoffee",
-              user: currentUser,
-              amount: price,
-              message: message,
-              timestamp: new Date().getTime(),
-            })
-            saveToLocalStorage()
-          }
+          saveData()
         } finally {
           isProcessing = false
         }
@@ -1291,19 +1340,7 @@
           updateBalanceDisplay()
 
           // データ保存
-          if (appState === APP_STATE.ONLINE) {
-            saveData()
-          } else {
-            // オフライン時は変更のみをキューに追加
-            offlineQueue.push({
-              type: "makePayment",
-              user: currentUser,
-              amount: amount,
-              message: message,
-              timestamp: new Date().getTime(),
-            })
-            saveToLocalStorage()
-          }
+          saveData()
         } finally {
           isProcessing = false
         }
@@ -1417,31 +1454,6 @@
         sharedData.monthlyStats[currentYearMonth].users[currentUser] += price
       }
 
-      // 取消後の月次統計更新
-      function updateMonthlyStatsAfterUndo(price) {
-        const now = new Date()
-        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-
-        if (sharedData.monthlyStats[currentYearMonth]) {
-          sharedData.monthlyStats[currentYearMonth].total = Math.max(
-            0,
-            sharedData.monthlyStats[currentYearMonth].total - price,
-          )
-
-          if (
-            sharedData.monthlyStats[currentYearMonth].users[currentUser] !==
-            undefined
-          ) {
-            sharedData.monthlyStats[currentYearMonth].users[currentUser] =
-              Math.max(
-                0,
-                sharedData.monthlyStats[currentYearMonth].users[currentUser] -
-                  price,
-              )
-          }
-        }
-      }
-
       // 取消処理開始
       function startUndoProcess() {
         if (!currentUser) {
@@ -1550,21 +1562,35 @@
         )
 
         // データ保存
-        if (appState === APP_STATE.ONLINE) {
-          saveData()
-        } else {
-          // オフライン時は変更のみをキューに追加
-          offlineQueue.push({
-            type: "undoTransaction",
-            user: currentUser,
-            amount: price,
-            timestamp: new Date().getTime(),
-          })
-          saveToLocalStorage()
-        }
+        saveData()
 
         // 取消UIリセット
         cancelUndo()
+      }
+
+      // 取消後の月次統計更新
+      function updateMonthlyStatsAfterUndo(price) {
+        const now = new Date()
+        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
+
+        if (sharedData.monthlyStats[currentYearMonth]) {
+          sharedData.monthlyStats[currentYearMonth].total = Math.max(
+            0,
+            sharedData.monthlyStats[currentYearMonth].total - price,
+          )
+
+          if (
+            sharedData.monthlyStats[currentYearMonth].users[currentUser] !==
+            undefined
+          ) {
+            sharedData.monthlyStats[currentYearMonth].users[currentUser] =
+              Math.max(
+                0,
+                sharedData.monthlyStats[currentYearMonth].users[currentUser] -
+                  price,
+              )
+          }
+        }
       }
 
       // 取消キャンセル
@@ -1670,7 +1696,7 @@
       // データリセット
       function resetData() {
         sharedData = {
-          version: "2.2",
+          version: "2.3",
           users: {
             user1: { name: "後藤なな", balance: 0 },
             user2: { name: "彭月欣", balance: 0 },
@@ -1682,21 +1708,31 @@
         }
 
         // データ保存
-        if (appState === APP_STATE.ONLINE) {
-          saveData()
-        } else {
-          // オフライン時はキューに追加
-          offlineQueue.push({
-            type: "resetAll",
-            timestamp: new Date().getTime(),
-          })
-          saveToLocalStorage()
-        }
+        saveData()
 
         addTransactionLog("システム: 全データをリセットしました")
         renderUserCards()
         updateAllBalances()
         updateTransactionList()
+      }
+
+      // デバッグ情報表示
+      function debugState() {
+        console.log("現在の状態:")
+        console.log("- App State:", appState)
+        console.log("- Current User:", currentUser)
+        console.log("- Users Data:", sharedData.users)
+        console.log("- Transactions:", sharedData.transactions.length)
+        console.log("- Monthly Stats:", sharedData.monthlyStats)
+        console.log("- Offline Queue:", offlineQueue.length)
+
+        // 5秒ごとにローカルストレージの内容も表示
+        if (localStorage.getItem(LOCAL_STORAGE_KEY)) {
+          console.log(
+            "ローカルストレージデータ:",
+            JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)),
+          )
+        }
       }
 
       // アプリ起動
