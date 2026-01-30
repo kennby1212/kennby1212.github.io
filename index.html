@@ -2,10 +2,10 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Using CDN for Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>オフィスコーヒー購入システム</title>
     <style>
       :root {
@@ -15,11 +15,12 @@
       body {
         font-family: "Meiryo", "メイリオ", sans-serif;
         max-width: 100%;
-        margin: 0;
+        margin: 0 auto;
         padding: 10px;
         background-color: #f5f5f5;
         color: #333;
         min-height: 100vh;
+        overflow-x: hidden;
       }
 
       .container {
@@ -33,9 +34,7 @@
         box-sizing: border-box;
       }
 
-      h1,
-      h2,
-      h3 {
+      h1, h2 {
         color: #333;
         text-align: center;
         margin-bottom: 20px;
@@ -52,21 +51,34 @@
         font-size: 1.3em;
       }
 
+      /* 取消UI用スタイル */
+      #undo-coffee-list .log-entry {
+        padding: 10px;
+        margin: 5px 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: all 0.2s;
+      }
+
+      #undo-coffee-list .log-entry:hover {
+        background-color: #f5f5f5 !important;
+      }
+
+      /* 取消ボタンのスタイル */
+      #start-undo-btn {
+        transition: all 0.3s;
+      }
+
+      #start-undo-btn:disabled {
+        background-color: #95a5a6;
+      }
+
       .section {
         margin-bottom: 25px;
         padding: 15px;
         border: 1px solid #ddd;
         border-radius: 5px;
         background-color: #f9f9f9;
-      }
-
-      .instructions {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 20px;
-        border-left: 4px solid #3498db;
-        font-size: 0.9em;
       }
 
       .coffee-store {
@@ -105,11 +117,6 @@
         overflow: hidden;
         width: 100%;
         box-sizing: border-box;
-        transition: transform 0.2s;
-      }
-
-      .coffee-btn:hover {
-        transform: translateY(-2px);
       }
 
       .coffee-btn::after {
@@ -135,16 +142,19 @@
         color: white;
       }
 
-      /* Coffee type colors */
+      /* コーヒータイプ別色分け */
       .americano {
         background-color: #2c3e50;
       }
+
       .latte {
         background-color: #d35400;
       }
+
       .special {
         background-color: #3cb038;
       }
+
       .other {
         background-color: #7f8c8d;
       }
@@ -163,10 +173,6 @@
         background-color: white;
         cursor: pointer;
         transition: all 0.3s;
-      }
-
-      .user-card:hover {
-        transform: scale(1.05);
       }
 
       .active-user {
@@ -215,16 +221,16 @@
         cursor: pointer;
         font-weight: bold;
         min-width: 80px;
-        transition: all 0.3s;
       }
 
       .payment-btn:hover {
         background-color: #27ae60;
-        transform: scale(1.05);
       }
 
       .transaction-log {
         margin-top: 25px;
+        max-height: 250px;
+        overflow-y: auto;
         border: 1px solid #ddd;
         padding: 10px;
         border-radius: 5px;
@@ -266,16 +272,13 @@
         transform: scale(0.98);
       }
 
-      .stats-btn {
-        background-color: #34495e;
-        color: white;
-        font-size: 0.8em;
-        padding: 5px 10px;
-        margin-left: 10px;
-      }
-
-      .stats-btn:hover {
-        background-color: #2c3e50;
+      .instructions {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+        border-left: 4px solid #3498db;
+        font-size: 0.9em;
       }
 
       .monthly-stats {
@@ -322,116 +325,7 @@
         color: #7f8c8d;
       }
 
-      /* Monthly stats styles */
-      .month-selector {
-        margin: 15px 0;
-        text-align: center;
-      }
-
-      .month-selector select {
-        padding: 8px 15px;
-        border-radius: 5px;
-        border: 1px solid #3498db;
-        background-color: white;
-        font-size: 1em;
-        color: #2c3e50;
-      }
-
-      .stats-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 15px 0;
-        font-size: 0.95em;
-      }
-
-      .stats-table th {
-        background-color: #3498db;
-        color: white;
-        padding: 10px;
-        text-align: left;
-      }
-
-      .stats-table td {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-      }
-
-      .stats-table tr.total-row {
-        font-weight: bold;
-        background-color: #f8f9fa;
-      }
-
-      .stats-table tr:nth-child(even):not(.total-row) {
-        background-color: #f9f9f9;
-      }
-
-      .stats-table tr:hover:not(.total-row) {
-        background-color: #f1f1f1;
-      }
-
-      /* Transaction history expand/collapse */
-      .transaction-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        padding: 5px;
-        background-color: #f0f0f0;
-        border-radius: 5px;
-        margin-bottom: 5px;
-      }
-
-      .transaction-header h3 {
-        margin: 0;
-        font-size: 1.1em;
-      }
-
-      .transaction-toggle {
-        font-size: 1.2em;
-      }
-
-      .transaction-list {
-        max-height: 300px;
-        overflow-y: auto;
-      }
-
-      .show-more-btn {
-        display: block;
-        width: 100%;
-        padding: 5px;
-        text-align: center;
-        background-color: #f0f0f0;
-        border: none;
-        cursor: pointer;
-        margin-top: 5px;
-        border-radius: 5px;
-      }
-
-      .show-more-btn:hover {
-        background-color: #e0e0e0;
-      }
-
-      /* Notification styles */
-      .notification {
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 15px 25px;
-        border-radius: 5px;
-        z-index: 1000;
-        opacity: 0;
-        transition: opacity 0.5s;
-        pointer-events: none;
-      }
-
-      .notification.show {
-        opacity: 1;
-      }
-
-      /* Responsive design */
+      /* モバイル対応 */
       @media (max-width: 768px) {
         :root {
           font-size: 14px;
@@ -512,7 +406,7 @@
             data-user="user1"
             onclick="selectUser('user1')"
           >
-            <div class="user-name">後藤なな</div>
+            <div class="user-name">庞逸凡</div>
             <div class="user-balance" data-user="user1">0円</div>
           </div>
           <div
@@ -539,16 +433,25 @@
             <div class="user-name">戴沅沣</div>
             <div class="user-balance" data-user="user4">0円</div>
           </div>
+          <div
+            class="user-card"
+            data-user="user5"
+            onclick="selectUser('user5')"
+          >
+            <div class="user-name">榎本淑子</div>
+            <div class="user-balance" data-user="user5">0円</div>
+          </div>
         </div>
       </div>
 
       <div class="section">
         <h2>コーヒーを選ぶ</h2>
 
+        <!-- セブン-イレブン -->
         <div class="coffee-store">
           <div class="store-name">セブン-イレブン (セブンカフェ)</div>
           <div class="coffee-options">
-            <!-- Americano (black) -->
+            <!-- アメリカーノ（黒） -->
             <button
               class="coffee-btn americano hot"
               onclick="addCoffee('セブンカフェ ホットコーヒー R', 140)"
@@ -574,33 +477,15 @@
               アイスコーヒー L 250円
             </button>
 
-            <!-- Special (green) -->
+            <!-- 水素焙煎 -->
             <button
               class="coffee-btn special hot"
-              onclick="addCoffee('セブンカフェ キリマンジャロホット R', 160)"
+              onclick="addCoffee('セブンカフェ 水素焙煎コーヒー', 160)"
             >
-              キリマンジャロホット R 160円
-            </button>
-            <button
-              class="coffee-btn special hot"
-              onclick="addCoffee('セブンカフェ キリマンジャロホット L', 250)"
-            >
-              キリマンジャロホット L 250円
-            </button>
-            <button
-              class="coffee-btn special ice"
-              onclick="addCoffee('セブンカフェ キリマンジャロアイス R', 160)"
-            >
-              キリマンジャロアイス R 160円
-            </button>
-            <button
-              class="coffee-btn special ice"
-              onclick="addCoffee('セブンカフェ キリマンジャロアイス L', 280)"
-            >
-              キリマンジャロアイス L 280円
+              水素焙煎コーヒー 160円
             </button>
 
-            <!-- Latte (orange) -->
+            <!-- カフェラテ（オレンジ） -->
             <button
               class="coffee-btn latte hot"
               onclick="addCoffee('セブンカフェ ホットカフェラテ R', 220)"
@@ -628,9 +513,11 @@
           </div>
         </div>
 
+        <!-- ファミリーマート -->
         <div class="coffee-store">
           <div class="store-name">ファミリーマート (ファミマカフェ)</div>
           <div class="coffee-options">
+            <!-- ブレンド (ホット) -->
             <button
               class="coffee-btn americano hot"
               onclick="addCoffee('ファミマ ブレンド S', 145)"
@@ -650,6 +537,7 @@
               ブレンド L 260円
             </button>
 
+            <!-- アイスコーヒー -->
             <button
               class="coffee-btn americano ice"
               onclick="addCoffee('ファミマ アイスコーヒー S', 145)"
@@ -669,7 +557,7 @@
               アイスコーヒー L 330円
             </button>
 
-            <!-- Latte (orange) -->
+            <!-- カフェラテ（ホット） -->
             <button
               class="coffee-btn latte hot"
               onclick="addCoffee('ファミマ カフェラテ M', 220)"
@@ -682,6 +570,8 @@
             >
               カフェラテ L 260円
             </button>
+
+            <!-- アイスカフェラテ -->
             <button
               class="coffee-btn latte ice"
               onclick="addCoffee('ファミマ アイスカフェラテ M', 240)"
@@ -694,7 +584,8 @@
             >
               アイスカフェラテ L 330円
             </button>
-            <!-- Americano (black) -->
+
+            <!-- モカブレンド -->
             <button
               class="coffee-btn other hot"
               onclick="addCoffee('ファミマ モカブレンド S', 170)"
@@ -716,10 +607,11 @@
           </div>
         </div>
 
+        <!-- ローソン -->
         <div class="coffee-store">
           <div class="store-name">ローソン (ローソンカフェ)</div>
           <div class="coffee-options">
-            <!-- Americano (black) -->
+            <!-- アメリカーノ（黒） -->
             <button
               class="coffee-btn americano hot"
               onclick="addCoffee('ローソン コーヒー S', 160)"
@@ -763,7 +655,7 @@
               メガアイスコーヒー 360円
             </button>
 
-            <!-- Latte (orange) -->
+            <!-- カフェラテ（オレンジ） -->
             <button
               class="coffee-btn latte hot"
               onclick="addCoffee('ローソン カフェラテ M', 230)"
@@ -795,19 +687,15 @@
               メガアイスカフェラテ 390円
             </button>
 
-            <!-- Special (green) -->
+            <!-- ほうじ茶ラテ -->
             <button
-              class="coffee-btn special ice"
-              onclick="addCoffee('ローソン アイスほうじ茶ラテ', 260)"
+              class="coffee-btn special hot"
+              onclick="addCoffee('ローソン ほうじ茶ラテ', 260)"
             >
-              アイスほうじ茶ラテ 260円
+              ほうじ茶ラテ 260円
             </button>
-            <button
-              class="coffee-btn special ice"
-              onclick="addCoffee('ローソン アイス宇治抹茶ラテ', 280)"
-            >
-              アイス宇治抹茶ラテ 280円
-            </button>
+
+            <!-- モカブレンド -->
             <button
               class="coffee-btn other hot"
               onclick="addCoffee('ローソン モカブレンド S', 180)"
@@ -842,65 +730,43 @@
 
       <div class="section">
         <h2>操作取り消し</h2>
-        <!-- 中央揃えのコンテナを追加 -->
         <div style="text-align: center">
-          <div style="text-align: center">
+          <button
+            class="action-btn"
+            id="start-undo-btn"
+            style="background-color: #e74c3c"
+            onclick="startUndoProcess()"
+          >
+            コーヒー取消を開始
+          </button>
+          <div id="undo-ui" style="display: none; margin-top: 15px">
+            <p>取消したいコーヒーを選択してください：</p>
+            <div
+              id="undo-coffee-list"
+              style="max-height: 200px; overflow-y: auto"
+            ></div>
             <button
               class="action-btn"
-              id="start-undo-btn"
-              style="background-color: #e74c3c; margin: 0 auto"
-              onclick="startUndoProcess()"
+              onclick="confirmUndo()"
+              style="background-color: #27ae60; margin-top: 10px"
             >
-              コーヒー取消を開始
+              確認取消
             </button>
-            <div
-              id="undo-ui"
-              style="display: none; margin-top: 15px; text-align: center"
+            <button
+              class="action-btn"
+              onclick="cancelUndo()"
+              style="background-color: #7f8c8d; margin-top: 10px"
             >
-              <p>取消したいコーヒーを選択してください：</p>
-              <div
-                id="undo-coffee-list"
-                style="max-height: 200px; overflow-y: auto; text-align: left"
-              ></div>
-              <div>
-                <button
-                  class="action-btn"
-                  onclick="confirmUndo()"
-                  style="background-color: #27ae60; margin-top: 10px"
-                >
-                  取消確認
-                </button>
-                <button
-                  class="action-btn"
-                  onclick="cancelUndo()"
-                  style="background-color: #7f8c8d; margin-top: 10px"
-                >
-                  キャンセル
-                </button>
-              </div>
-            </div>
+              キャンセル
+            </button>
           </div>
         </div>
       </div>
 
       <div class="section">
         <h2>取引履歴</h2>
-        <div class="transaction-log">
-          <div class="transaction-header" onclick="toggleTransactionList()">
-            <h3>最近の取引</h3>
-            <span class="transaction-toggle" id="transaction-toggle">▼</span>
-          </div>
-          <div class="transaction-list" id="transaction-list">
-            <!-- Transaction history will be displayed here -->
-          </div>
-          <button
-            class="show-more-btn"
-            id="show-more-btn"
-            onclick="showMoreTransactions()"
-            style="display: none"
-          >
-            もっと見る
-          </button>
+        <div id="transaction-list">
+          <!-- 取引履歴がここに表示されます -->
         </div>
       </div>
 
@@ -929,323 +795,231 @@
       </div>
     </div>
 
-    <!-- Notification element -->
-    <div class="notification" id="notification"></div>
-
     <script>
-      // Firebase configuration
-      const firebaseConfig = {
-        apiKey: "AIzaSyB0DTvh0QSAlVt05dBuLg8wA-yFejOCu1w",
-        authDomain: "coffee-ginza-kb.firebaseapp.com",
-        projectId: "coffee-ginza-kb",
-        storageBucket: "coffee-ginza-kb.appspot.com",
-        messagingSenderId: "463453581877",
-        appId: "1:463453581877:web:69002929a5298f194ff77c",
-        measurementId: "G-6NVRDHQBBK",
-        databaseURL: "https://coffee-ginza-kb-default-rtdb.firebaseio.com/",
-      }
+      // 現在選択中のユーザー
+      let currentUser = null;
 
-      // Firebase initialization
-      const app = firebase.initializeApp(firebaseConfig)
-      const database = firebase.database()
+      // ユーザーデータ
+      let users = {
+        user1: { balance: 0, name: "庞逸凡" },
+        user2: { balance: 0, name: "彭月欣" },
+        user3: { balance: 0, name: "洪賢美" },
+        user4: { balance: 0, name: "戴沅沣" },
+        user5: { balance: 0, name: "榎本淑子" }
+      };
 
-      // Data path
-      const DATA_PATH = "officeCoffeeSystemData"
+      // 取引履歴
+      let transactions = [];
 
-      // Shared data
-      let sharedData = {
-        version: "2.0",
-        users: {
-          user1: { name: "後藤なな", balance: 0 },
-          user2: { name: "彭月欣", balance: 0 },
-          user3: { name: "洪賢美", balance: 0 },
-          user4: { name: "戴沅沣", balance: 0 },
-        },
-        transactions: [],
-        monthlyStats: {},
-      }
+      // 月別統計データ
+      let monthlyStats = {};
 
-      // Current user and state
-      let currentUser = null
-      let isProcessing = false
-      let selectedTransactionForUndo = -1
-      let transactionListExpanded = false
-      let displayedTransactionCount = 10 // Default number of transactions to show
-      const TRANSACTIONS_PER_PAGE = 20 // Transactions to show per "show more" click
-      const MAX_TRANSACTIONS = 100 // Maximum transactions to store
+      // 取消用グローバル変数
+      let selectedTransactionForUndo = null;
+      let isProcessing = false;
 
-      // App initialization
+      // 初期化 - ローカルストレージからデータを読み込む
       function init() {
-        loadData()
-        setupEventListeners()
-      }
+        const savedData = localStorage.getItem("coffeeSystemDataJPv2");
+        if (savedData) {
+          try {
+            const data = JSON.parse(savedData);
+            users = data.users || users;
+            transactions = data.transactions || transactions;
+            monthlyStats = data.monthlyStats || {};
 
-      // Event listeners setup
-      function setupEventListeners() {
-        document
-          .getElementById("reset-all-btn")
-          .addEventListener("click", confirmResetAll)
-      }
-
-      // Load data
-      function loadData() {
-        showLoading(true)
-
-        database
-          .ref(DATA_PATH)
-          .once("value")
-          .then((snapshot) => {
-            const savedData = snapshot.val()
-
-            if (savedData) {
-              try {
-                if (savedData.version === sharedData.version) {
-                  sharedData = savedData
-                } else {
-                  migrateData(savedData)
-                }
-              } catch (e) {
-                console.error("Data loading error:", e)
-                resetData()
-              }
-            } else {
-              saveData()
+            // データ不整合をチェック
+            if (!monthlyStats || typeof monthlyStats !== "object") {
+              monthlyStats = {};
+              recalculateMonthlyStats();
             }
+          } catch (e) {
+            console.error("データ読み込みエラー:", e);
+            localStorage.removeItem("coffeeSystemDataJPv2");
+          }
+        }
 
-            renderUserCards()
-            updateAllBalances()
-            updateTransactionList()
-            showLoading(false)
-          })
-          .catch((error) => {
-            console.error("Data loading error:", error)
-            showLoading(false)
-            alert(
-              "データの読み込みに失敗しました。ネットワーク接続を確認してください。",
-            )
-          })
+        updateAllBalances();
+        updateTransactionList();
       }
 
-      // Save data
+      // データをローカルストレージに保存
       function saveData() {
-        showLoading(true)
+        recalculateMonthlyStats();
 
-        database
-          .ref(DATA_PATH)
-          .set(sharedData)
-          .then(() => {
-            console.log("Data saved successfully")
-            showLoading(false)
-          })
-          .catch((error) => {
-            console.error("Data saving error:", error)
-            showLoading(false)
-            alert(
-              "データの保存に失敗しました。ネットワーク接続を確認してください。",
-            )
-          })
+        const data = {
+          users: users,
+          transactions: transactions,
+          monthlyStats: monthlyStats,
+        };
+        localStorage.setItem("coffeeSystemDataJPv2", JSON.stringify(data));
       }
 
-      // Data migration
-      function migrateData(oldData) {
-        // User balance migration
-        for (const userId in sharedData.users) {
-          if (oldData.users && oldData.users[userId]) {
-            sharedData.users[userId].balance =
-              oldData.users[userId].balance || 0
-          }
-        }
+      // 月次統計を全データから再計算
+      function recalculateMonthlyStats() {
+        const newMonthlyStats = {};
 
-        // Transaction history migration
-        if (oldData.transactions) {
-          sharedData.transactions = oldData.transactions.slice(
-            0,
-            MAX_TRANSACTIONS,
-          )
-        }
+        transactions.forEach((transaction) => {
+          if (transaction.message.includes("取消し")) return;
 
-        // Monthly stats migration
-        if (oldData.monthlyStats) {
-          sharedData.monthlyStats = oldData.monthlyStats
-        }
+          const transDate = new Date(transaction.timestamp);
+          const yearMonth = `${transDate.getFullYear()}-${(transDate.getMonth() + 1).toString().padStart(2, "0")}`;
+          const amount = extractAmountFromMessage(transaction.message);
 
-        saveData()
-      }
+          if (!amount || isNaN(amount)) return;
 
-      // Reset all data
-      function resetData() {
-        if (
-          !confirm(
-            "本当に全データをリセットしますか？この操作は元に戻せません。",
-          )
-        ) {
-          return
-        }
-
-        sharedData = {
-          version: "2.0",
+          if (!newMonthlyStats[yearMonth]) {
+           newMonthlyStats[yearMonth] = {
+            total: 0,
           users: {
-            user1: { name: "後藤なな", balance: 0 },
-            user2: { name: "彭月欣", balance: 0 },
-            user3: { name: "洪賢美", balance: 0 },
-            user4: { name: "戴沅沣", balance: 0 },
-          },
-          transactions: [],
-          monthlyStats: {},
-        }
+            user1: 0,
+            user2: 0,
+            user3: 0,
+            user4: 0,
+            user5: 0,
+             },
+           };
+         }
 
-        saveData()
-        addTransactionLog("システム: 全データをリセットしました")
-        renderUserCards()
-        updateAllBalances()
-        updateTransactionList()
+
+          newMonthlyStats[yearMonth].total += amount;
+          if (
+            transaction.user &&
+            newMonthlyStats[yearMonth].users[transaction.user] !== undefined
+          ) {
+            newMonthlyStats[yearMonth].users[transaction.user] += amount;
+          }
+        });
+
+        monthlyStats = newMonthlyStats;
       }
 
-      // Render user cards
-      function renderUserCards() {
-        const userDisplay = document.querySelector(".user-display")
-        userDisplay.innerHTML = ""
+      // メッセージから金額を抽出
+      function extractAmountFromMessage(message) {
+        const purchaseMatch = message.match(/購入\s*\((\d+)円\)/);
+        if (purchaseMatch) return parseInt(purchaseMatch[1]);
 
-        for (const userId in sharedData.users) {
-          const user = sharedData.users[userId]
-          const card = document.createElement("div")
-          card.className = `user-card ${currentUser === userId ? "active-user" : ""}`
-          card.dataset.user = userId
-          card.onclick = () => selectUser(userId)
+        const undoMatch = message.match(/(\d+)円\s*取消し/);
+        if (undoMatch) return -parseInt(undoMatch[1]);
 
-          card.innerHTML = `
-                  <div class="user-name">${user.name}</div>
-                  <div class="user-balance" data-user="${userId}">${user.balance.toLocaleString()}円</div>
-              `
-
-          userDisplay.appendChild(card)
-        }
+        return 0;
       }
 
-      // Select user
-      function selectUser(userId) {
-        currentUser = userId
-        renderUserCards()
-        updateBalanceDisplay()
-        addTransactionLog(`${sharedData.users[userId].name} を選択しました`)
-      }
-
-      // Add coffee purchase
-      function addCoffee(coffeeName, price) {
-        if (isProcessing) return
-        isProcessing = true
+      // 取消流程を開始
+      function startUndoProcess() {
+        if (isProcessing) return;
+        isProcessing = true;
 
         try {
           if (!currentUser) {
-            alert("まずユーザーを選択してください")
-            return
+            alert("まずユーザーを選択してください");
+            return;
           }
 
-          // Update balance
-          sharedData.users[currentUser].balance += price
+          const userTransactions = transactions.filter(
+            (t) => t.user === currentUser && t.message.includes("購入"),
+          );
 
-          // Add transaction log
-          addTransactionLog(
-            `${sharedData.users[currentUser].name} が ${coffeeName} を購入 (${price}円)`,
-          )
+          if (userTransactions.length === 0) {
+            alert("取消できるコーヒー購入記録がありません");
+            return;
+          }
 
-          // Update monthly stats
-          updateMonthlyStats(price)
+          document.getElementById("undo-ui").style.display = "block";
+          document.getElementById("start-undo-btn").style.display = "none";
 
-          // Update UI
-          updateBalanceDisplay()
-          saveData()
+          const coffeeList = document.getElementById("undo-coffee-list");
+          coffeeList.innerHTML = "";
 
-          // Show notification
-          showNotification(`${coffeeName} を選択しました (${price}円)`)
+          userTransactions.forEach((trans, index) => {
+            const transElement = document.createElement("div");
+            transElement.className = "log-entry";
+            transElement.style.cursor = "pointer";
+            transElement.style.backgroundColor =
+              selectedTransactionForUndo === index ? "#eaf2f8" : "";
+            transElement.innerHTML = `
+                <div class="timestamp">[${trans.timestamp}]</div>
+                <div>${trans.message}</div>
+            `;
+            transElement.addEventListener("click", () => {
+              selectedTransactionForUndo = index;
+              document
+                .querySelectorAll("#undo-coffee-list .log-entry")
+                .forEach((el) => {
+                  el.style.backgroundColor = "";
+                });
+              transElement.style.backgroundColor = "#eaf2f8";
+            });
+            coffeeList.appendChild(transElement);
+          });
         } finally {
-          isProcessing = false
+          isProcessing = false;
         }
       }
 
-      // Show notification
-      function showNotification(message) {
-        const notification = document.getElementById("notification")
-        notification.textContent = message
-        notification.classList.add("show")
-
-        // Auto-hide after 2 seconds
-        setTimeout(() => {
-          notification.classList.remove("show")
-        }, 2000)
-      }
-
-      // Make payment
-      function makePayment(amount) {
-        if (isProcessing) return
-        isProcessing = true
+      // 取消を確認
+      function confirmUndo() {
+        if (isProcessing) return;
+        isProcessing = true;
 
         try {
-          if (!currentUser) {
-            alert("まずユーザーを選択してください")
-            return
+          if (selectedTransactionForUndo === null) {
+            alert("取消するコーヒーを選択してください");
+            return;
           }
 
-          // Check balance
-          if (sharedData.users[currentUser].balance - amount < 0) {
-            alert(
-              `支払い後の残高がマイナスになります。最大 ${sharedData.users[currentUser].balance}円 まで支払えます。`,
-            )
-            return
+          const userTransactions = transactions.filter(
+            (t) => t.user === currentUser && t.message.includes("購入"),
+          );
+          const selectedTrans = userTransactions[selectedTransactionForUndo];
+
+          if (!selectedTrans) {
+            alert("選択した記録が見つかりません");
+            return;
           }
 
-          sharedData.users[currentUser].balance -= amount
+          const amountMatch = selectedTrans.message.match(/\((\d+)円\)/);
+          if (!amountMatch) {
+            alert("金額情報が不正です");
+            return;
+          }
+
+          const amount = parseInt(amountMatch[1]);
+          users[currentUser].balance -= amount;
+          updateBalanceDisplay(currentUser);
+
+          // 該当取引を履歴から削除
+          const transIndex = transactions.findIndex((t) => t === selectedTrans);
+          if (transIndex !== -1) {
+            transactions.splice(transIndex, 1);
+          }
+
           addTransactionLog(
-            `${sharedData.users[currentUser].name} が ${amount}円 支払い`,
-          )
-          updateBalanceDisplay()
-          saveData()
-
-          // Show payment notification
-          showNotification(`${amount}円 支払いが完了しました`)
+            `${users[currentUser].name} がコーヒー購入を取り消し (${amount}円)`,
+          );
+          saveData();
+          resetUndoUI();
         } finally {
-          isProcessing = false
+          isProcessing = false;
         }
       }
 
-      // Update balance display
-      function updateBalanceDisplay() {
-        if (currentUser) {
-          document.getElementById("current-balance").textContent =
-            `${sharedData.users[currentUser].balance.toLocaleString()}円`
-        }
-
-        // Update all users' balance
-        for (const userId in sharedData.users) {
-          const balanceElement = document.querySelector(
-            `.user-balance[data-user="${userId}"]`,
-          )
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[userId].balance.toLocaleString()}円`
-          }
-        }
+      // 取消流程をキャンセル
+      function cancelUndo() {
+        resetUndoUI();
       }
 
-      // Update all balances
-      function updateAllBalances() {
-        for (const userId in sharedData.users) {
-          const balanceElement = document.querySelector(
-            `.user-balance[data-user="${userId}"]`,
-          )
-          if (balanceElement) {
-            balanceElement.textContent = `${sharedData.users[userId].balance.toLocaleString()}円`
-          }
-        }
-
-        if (currentUser) {
-          document.getElementById("current-balance").textContent =
-            `${sharedData.users[currentUser].balance.toLocaleString()}円`
-        }
+      // UIをリセット
+      function resetUndoUI() {
+        document.getElementById("undo-ui").style.display = "none";
+        document.getElementById("start-undo-btn").style.display = "inline-block";
+        selectedTransactionForUndo = null;
+        document.getElementById("undo-coffee-list").innerHTML = "";
       }
 
-      // Add transaction log
+      // 取引履歴を追加
       function addTransactionLog(message) {
-        const now = new Date()
+        const now = new Date();
         const timestamp = now.toLocaleString("ja-JP", {
           year: "numeric",
           month: "2-digit",
@@ -1253,366 +1027,222 @@
           hour: "2-digit",
           minute: "2-digit",
           second: "2-digit",
-        })
+        });
 
-        const newTransaction = {
-          timestamp,
-          message,
+        transactions.unshift({
+          timestamp: timestamp,
+          message: message,
           user: currentUser,
+        });
+
+        if (transactions.length > 100) {
+          transactions.pop();
         }
 
-        sharedData.transactions.unshift(newTransaction)
-
-        // Limit number of transactions
-        if (sharedData.transactions.length > MAX_TRANSACTIONS) {
-          sharedData.transactions = sharedData.transactions.slice(
-            0,
-            MAX_TRANSACTIONS,
-          )
-        }
-
-        updateTransactionList()
+        updateTransactionList();
+        saveData(); // 即時保存して統計を更新
       }
 
-      // Update transaction list
+      // 取引履歴リストを更新
       function updateTransactionList() {
-        const listElement = document.getElementById("transaction-list")
-        listElement.innerHTML = ""
+        const listElement = document.getElementById("transaction-list");
+        listElement.innerHTML = "";
 
-        // Show transactions based on current display count
-        const transactionsToShow = sharedData.transactions.slice(
-          0,
-          displayedTransactionCount,
-        )
-
-        if (transactionsToShow.length === 0) {
-          listElement.innerHTML = "<p>取引履歴がありません</p>"
-          document.getElementById("show-more-btn").style.display = "none"
-          return
-        }
-
-        transactionsToShow.forEach((transaction) => {
-          const entry = document.createElement("div")
-          entry.className = "log-entry"
+        transactions.forEach((transaction) => {
+          const entry = document.createElement("div");
+          entry.className = "log-entry";
           entry.innerHTML = `
-                  <div class="timestamp">[${transaction.timestamp}]</div>
-                  <div>${transaction.message}</div>
-                `
-          listElement.appendChild(entry)
-        })
-
-        // Show "show more" button if there are more transactions to display
-        const showMoreBtn = document.getElementById("show-more-btn")
-        if (sharedData.transactions.length > displayedTransactionCount) {
-          showMoreBtn.style.display = "block"
-        } else {
-          showMoreBtn.style.display = "none"
-        }
+            <div class="timestamp">[${transaction.timestamp}]</div>
+            <div>${transaction.message}</div>
+        `;
+          listElement.appendChild(entry);
+        });
       }
 
-      // Toggle transaction list expanded/collapsed state
-      function toggleTransactionList() {
-        transactionListExpanded = !transactionListExpanded
-        const toggleIcon = document.getElementById("transaction-toggle")
-        const transactionList = document.getElementById("transaction-list")
-
-        if (transactionListExpanded) {
-          toggleIcon.textContent = "▲"
-          displayedTransactionCount = Math.min(
-            TRANSACTIONS_PER_PAGE,
-            sharedData.transactions.length,
-          )
-        } else {
-          toggleIcon.textContent = "▼"
-          displayedTransactionCount = 10
-        }
-
-        updateTransactionList()
-      }
-
-      // Show more transactions
-      function showMoreTransactions() {
-        displayedTransactionCount = Math.min(
-          displayedTransactionCount + TRANSACTIONS_PER_PAGE,
-          sharedData.transactions.length,
-        )
-        updateTransactionList()
-      }
-
-      // Update monthly stats
-      function updateMonthlyStats(price) {
-        const now = new Date()
-        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-
-        // Initialize current month data
-        if (!sharedData.monthlyStats[currentYearMonth]) {
-          sharedData.monthlyStats[currentYearMonth] = {
-            total: 0,
-            users: {
-              user1: 0,
-              user2: 0,
-              user3: 0,
-              user4: 0,
-            },
-          }
-        }
-
-        // Update stats
-        sharedData.monthlyStats[currentYearMonth].total += price
-        sharedData.monthlyStats[currentYearMonth].users[currentUser] += price
-      }
-
-      // Update monthly stats after undo
-      function updateMonthlyStatsAfterUndo(price) {
-        const now = new Date()
-        const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-
-        if (sharedData.monthlyStats[currentYearMonth]) {
-          sharedData.monthlyStats[currentYearMonth].total = Math.max(
-            0,
-            sharedData.monthlyStats[currentYearMonth].total - price,
-          )
-
-          if (
-            sharedData.monthlyStats[currentYearMonth].users[currentUser] !==
-            undefined
-          ) {
-            sharedData.monthlyStats[currentYearMonth].users[currentUser] =
-              Math.max(
-                0,
-                sharedData.monthlyStats[currentYearMonth].users[currentUser] -
-                  price,
-              )
-          }
-        }
-      }
-
-      // Start undo process
-      function startUndoProcess() {
-        if (!currentUser) {
-          alert("まずユーザーを選択してください")
-          return
-        }
-
-        const userTransactions = sharedData.transactions.filter(
-          (t) => t.user === currentUser && t.message.includes("購入"),
-        )
-
-        if (userTransactions.length === 0) {
-          alert("取消できるコーヒー購入記録がありません")
-          return
-        }
-
-        const undoList = document.getElementById("undo-coffee-list")
-        undoList.innerHTML = ""
-
-        userTransactions.forEach((trans, index) => {
-          const transElement = document.createElement("div")
-          transElement.className = "log-entry"
-          transElement.style.cursor = "pointer"
-          transElement.style.backgroundColor =
-            selectedTransactionForUndo === index ? "#eaf2f8" : ""
-          transElement.innerHTML = `
-                  <div class="timestamp">[${trans.timestamp}]</div>
-                  <div>${trans.message}</div>
-              `
-          transElement.onclick = () => {
-            selectedTransactionForUndo = index
-            document
-              .querySelectorAll("#undo-coffee-list .log-entry")
-              .forEach((el) => {
-                el.style.backgroundColor = ""
-              })
-            transElement.style.backgroundColor = "#eaf2f8"
-          }
-          undoList.appendChild(transElement)
-        })
-
-        document.getElementById("undo-ui").style.display = "block"
-        document.getElementById("start-undo-btn").style.display = "none"
-      }
-
-      // Confirm undo
-      function confirmUndo() {
-        if (selectedTransactionForUndo === -1) {
-          alert("取消するコーヒーを選択してください")
-          return
-        }
-
-        const userTransactions = sharedData.transactions.filter(
-          (t) => t.user === currentUser && t.message.includes("購入"),
-        )
-
-        if (selectedTransactionForUndo >= userTransactions.length) {
-          alert("無効な選択です")
-          return
-        }
-
-        if (!confirm("本当にこの購入記録を取り消しますか？")) {
-          return
-        }
-
-        const message = userTransactions[selectedTransactionForUndo].message
-        const priceMatch = message.match(/\((\d+)円\)/)
-
-        if (!priceMatch) {
-          alert("価格情報が見つかりません")
-          return
-        }
-
-        const price = parseInt(priceMatch[1])
-
-        if (sharedData.users[currentUser].balance - price < 0) {
-          alert("取消すると残高がマイナスになります。取消できません。")
-          return
-        }
-
-        // Adjust balance
-        sharedData.users[currentUser].balance -= price
-
-        // Remove transaction
-        const transactionIndex = sharedData.transactions.findIndex(
-          (t) =>
-            t.timestamp ===
-              userTransactions[selectedTransactionForUndo].timestamp &&
-            t.message === userTransactions[selectedTransactionForUndo].message,
-        )
-
-        if (transactionIndex !== -1) {
-          sharedData.transactions.splice(transactionIndex, 1)
-        }
-
-        // Update stats
-        updateMonthlyStatsAfterUndo(price)
-
-        // Update UI
-        updateBalanceDisplay()
-        updateTransactionList()
-        addTransactionLog(
-          `${sharedData.users[currentUser].name} のコーヒー購入を取り消しました (${price}円)`,
-        )
-        saveData()
-
-        // Show undo notification
-        showNotification(`${price}円 の取消が完了しました`)
-
-        // Reset undo UI
-        cancelUndo()
-      }
-
-      // Cancel undo
-      function cancelUndo() {
-        document.getElementById("undo-ui").style.display = "none"
-        document.getElementById("start-undo-btn").style.display = "block"
-        selectedTransactionForUndo = -1
-
-        const container =
-          document.querySelector("#start-undo-btn").parentElement
-        container.style.display = "block"
-        container.style.textAlign = "center"
-      }
-
-      // Show monthly stats
+      // 月別統計を表示
       function showMonthlyStats() {
-        const statsContent = document.getElementById("stats-content")
-        const months = Object.keys(sharedData.monthlyStats).sort().reverse()
+        recalculateMonthlyStats();
 
-        if (months.length === 0) {
-          statsContent.innerHTML = "<p>統計データがありません</p>"
+        const sortedMonths = Object.keys(monthlyStats).sort((a, b) =>
+          b.localeCompare(a),
+        );
+
+        let statsHTML = `
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>年月</th>
+                    <th>合計金額</th>
+                    <th>庞さん</th>
+                    <th>彭さん</th>
+                    <th>洪さん</th>
+                    <th>戴さん</th>
+                    <th>榎本さん</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        if (sortedMonths.length === 0) {
+          statsHTML += `
+            <tr>
+                <td colspan="6" style="text-align:center;">データがありません</td>
+            </tr>`;
         } else {
-          statsContent.innerHTML = `
-                  <div class="month-selector">
-                      <select id="month-select" onchange="updateStatsDisplay()">
-                          ${months
-                            .map(
-                              (month) => `
-                              <option value="${month}">${month.replace("-", "年")}月</option>
-                          `,
-                            )
-                            .join("")}
-                      </select>
-                  </div>
-                  <div id="stats-details"></div>
-              `
-          updateStatsDisplay()
+          sortedMonths.forEach((yearMonth) => {
+            statsHTML += `
+                <tr>
+                    <td>${yearMonth}</td>
+                    <td>${monthlyStats[yearMonth].total.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user1.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user2.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user3.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user4.toLocaleString()}円</td>
+                    <td>${monthlyStats[yearMonth].users.user5.toLocaleString()}円</td>
+                </tr>`;
+          });
         }
 
-        document.getElementById("monthly-stats").style.display = "block"
+        statsHTML += `
+            </tbody>
+        </table>
+        <p style="text-align: right; margin-top: 10px; font-size: 0.9em; color: #7f8c8d;">
+            更新: ${new Date().toLocaleString("ja-JP")}
+        </p>`;
+
+        document.getElementById("stats-content").innerHTML = statsHTML;
+        document.getElementById("monthly-stats").style.display = "block";
       }
 
-      // Update stats display
-      function updateStatsDisplay() {
-        const monthSelect = document.getElementById("month-select")
-        const selectedMonth = monthSelect
-          ? monthSelect.value
-          : Object.keys(sharedData.monthlyStats).sort().reverse()[0]
-        const stats = sharedData.monthlyStats[selectedMonth]
-        const statsDetails = document.getElementById("stats-details")
-
-        if (!stats) {
-          statsDetails.innerHTML = "<p>選択された月のデータがありません</p>"
-          return
-        }
-
-        let html = `
-              <table class="stats-table">
-                  <tr>
-                      <th>ユーザー</th>
-                      <th>利用金額</th>
-                      <th>割合</th>
-                  </tr>
-                  <tr class="total-row">
-                      <td><strong>合計</strong></td>
-                      <td><strong>${stats.total.toLocaleString()}円</strong></td>
-                      <td><strong>100%</strong></td>
-                  </tr>
-          `
-
-        for (const userId in stats.users) {
-          const user = sharedData.users[userId]
-          const amount = stats.users[userId]
-          const percentage =
-            stats.total > 0 ? Math.round((amount / stats.total) * 100) : 0
-
-          html += `
-                  <tr>
-                      <td>${user.name}</td>
-                      <td>${amount.toLocaleString()}円</td>
-                      <td>${percentage}%</td>
-                  </tr>
-              `
-        }
-
-        html += `</table>`
-        statsDetails.innerHTML = html
-      }
-
-      // Close monthly stats
+      // 月別統計を閉じる
       function closeMonthlyStats() {
-        document.getElementById("monthly-stats").style.display = "none"
+        document.getElementById("monthly-stats").style.display = "none";
       }
 
-      // Confirm reset all data
+      // ユーザーを選択
+      function selectUser(userId) {
+        currentUser = userId;
+
+        document.querySelectorAll(".user-card").forEach((card) => {
+          card.classList.remove("active-user");
+        });
+        document
+          .querySelector(`.user-card[data-user="${userId}"]`)
+          .classList.add("active-user");
+
+        document.getElementById("current-balance").textContent =
+          `${users[userId].balance}円`;
+
+        addTransactionLog(`${users[userId].name} を選択しました`);
+      }
+
+      // コーヒーを追加
+      function addCoffee(coffeeName, price) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+          if (!currentUser) {
+            alert("まずユーザーを選択してください");
+            return;
+          }
+
+          users[currentUser].balance += price;
+          updateBalanceDisplay(currentUser);
+
+          addTransactionLog(
+            `${users[currentUser].name} が ${coffeeName} を購入 (${price}円)`,
+          );
+          saveData();
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      // 支払い処理
+      function makePayment(amount) {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try {
+          if (!currentUser) {
+            alert("まずユーザーを選択してください");
+            return;
+          }
+
+          if (users[currentUser].balance < amount) {
+            alert("残高が不足しています");
+            return;
+          }
+
+          users[currentUser].balance -= amount;
+          updateBalanceDisplay(currentUser);
+
+          addTransactionLog(`${users[currentUser].name} が ${amount}円 支払い`);
+          saveData();
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      // 残高表示を更新
+      function updateBalanceDisplay(userId) {
+        document.querySelector(
+          `.user-balance[data-user="${userId}"]`,
+        ).textContent = `${users[userId].balance}円`;
+
+        if (currentUser === userId) {
+          document.getElementById("current-balance").textContent =
+            `${users[userId].balance}円`;
+        }
+      }
+
+      // 全ユーザーの残高表示を更新
+      function updateAllBalances() {
+        for (const userId in users) {
+          updateBalanceDisplay(userId);
+        }
+      }
+
+      // 全データをリセット
+      function resetAllData() {
+        // ユーザー残高リセット
+        for (const userId in users) {
+          users[userId].balance = 0;
+        }
+
+        // 取引履歴クリア
+        transactions = [];
+
+        // 月別統計クリア
+        monthlyStats = {};
+
+        // UI更新
+        updateAllBalances();
+        updateTransactionList();
+
+        // データ保存
+        saveData();
+
+        // 取消UIを閉じる（もし開いていたら）
+        resetUndoUI();
+
+        alert("全データをリセットしました");
+      }
+
+      // パスワード確認付きリセット
       function confirmResetAll() {
-        if (
-          confirm(
-            "本当に全データをリセットしますか？この操作は元に戻せません。",
-          )
-        ) {
-          resetData()
+        const password = prompt("管理者パスワードを入力してください");
+        if (password === "1689") {
+          if (confirm("本当に全データをリセットしますか？")) {
+            resetAllData();
+          }
+        } else if (password) {
+          alert("パスワードが違います");
         }
       }
 
-      // Show loading indicator
-      function showLoading(show) {
-        const loadingElement = document.getElementById("loading-indicator")
-        if (loadingElement) {
-          loadingElement.style.display = show ? "block" : "none"
-        }
-      }
-
-      // Start the app
-      window.onload = init
+      // アプリを初期化
+      init();
     </script>
   </body>
 </html>
