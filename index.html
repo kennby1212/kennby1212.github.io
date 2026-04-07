@@ -618,25 +618,25 @@
             </button>
 
             <button
-              class="coffee-btn tea hot"
+              class="coffee-btn other hot"
               onclick="addCoffee('セブンカフェ ホットティー R', 121)"
             >
               ホットティー R 121円
             </button>
             <button
-              class="coffee-btn tea hot"
+              class="coffee-btn other hot"
               onclick="addCoffee('セブンカフェ ホットティー L', 180)"
             >
               ホットティー L 180円
             </button>
             <button
-              class="coffee-btn tea ice"
+              class="coffee-btn other ice"
               onclick="addCoffee('セブンカフェ アイスティー R', 121)"
             >
               アイスティー R 121円
             </button>
             <button
-              class="coffee-btn tea ice"
+              class="coffee-btn other ice"
               onclick="addCoffee('セブンカフェ アイスティー L', 211)"
             >
               アイスティー L 211円
@@ -1055,7 +1055,7 @@
             }
 
             renderUserCards()
-            updateAllBalances()
+            updaotherllBalances()
             updateTransactionList()
             showLoading(false)
           })
@@ -1140,7 +1140,7 @@
         saveData()
         addTransactionLog("システム: 全データをリセットしました")
         renderUserCards()
-        updateAllBalances()
+        updaotherllBalances()
         updateTransactionList()
       }
 
@@ -1270,7 +1270,7 @@
       }
 
       // Update all balances
-      function updateAllBalances() {
+      function updaotherllBalances() {
         for (const userId in sharedData.users) {
           const balanceElement = document.querySelector(
             `.user-balance[data-user="${userId}"]`,
