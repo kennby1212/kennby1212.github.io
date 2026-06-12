@@ -533,14 +533,6 @@
           </div>
           <div
             class="user-card"
-            data-user="user4"
-            onclick="selectUser('user4')"
-          >
-            <div class="user-name">戴沅沣</div>
-            <div class="user-balance" data-user="user4">0円</div>
-          </div>
-          <div
-            class="user-card"
             data-user="user5"
             onclick="selectUser('user5')"
           >
@@ -668,99 +660,125 @@
           </div>
         </div>
 
-        <!-- ファミリーマート -->
-        <div class="coffee-store">
-          <div class="store-name">ファミリーマート (ファミマカフェ)</div>
-          <div class="coffee-options">
-            <!-- ブレンド (ホット) -->
-            <button
-              class="coffee-btn americano hot"
-              onclick="addCoffee('ファミマ ブレンド S', 145)"
-            >
-              ブレンド S 145円
-            </button>
-            <button
-              class="coffee-btn americano hot"
-              onclick="addCoffee('ファミマ ブレンド M', 220)"
-            >
-              ブレンド M 220円
-            </button>
-            <button
-              class="coffee-btn americano hot"
-              onclick="addCoffee('ファミマ ブレンド L', 260)"
-            >
-              ブレンド L 260円
-            </button>
+ <!-- ファミリーマート ファミマカフェ フルメニュー -->
+<div class="coffee-store">
+  <div class="store-name">ファミリーマート (ファミマカフェ)</div>
+  <div class="coffee-options">
 
-            <!-- アイスコーヒー -->
-            <button
-              class="coffee-btn americano ice"
-              onclick="addCoffee('ファミマ アイスコーヒー S', 145)"
-            >
-              アイスコーヒー S 145円
-            </button>
-            <button
-              class="coffee-btn americano ice"
-              onclick="addCoffee('ファミマ アイスコーヒー M', 240)"
-            >
-              アイスコーヒー M 240円
-            </button>
-            <button
-              class="coffee-btn americano ice"
-              onclick="addCoffee('ファミマ アイスコーヒー L', 330)"
-            >
-              アイスコーヒー L 330円
-            </button>
+    <!-- ブレンド (ホット) -->
+    <button
+      class="coffee-btn americano hot"
+      onclick="addCoffee('ファミマ ブレンド S', 150)"
+    >
+      ブレンド S 150円
+    </button>
+    <button
+      class="coffee-btn americano hot"
+      onclick="addCoffee('ファミマ ブレンド M', 220)"
+    >
+      ブレンド M 220円
+    </button>
+    <button
+      class="coffee-btn americano hot"
+      onclick="addCoffee('ファミマ ブレンド L', 260)"
+    >
+      ブレンド L 260円
+    </button>
+    <button
+      class="coffee-btn americano hot"
+      onclick="addCoffee('ファミマ ブレンド LL *', 320)"
+    >
+      ブレンド LL * 320円
+    </button>
 
-            <!-- カフェラテ（ホット） -->
-            <button
-              class="coffee-btn latte hot"
-              onclick="addCoffee('ファミマ カフェラテ M', 220)"
-            >
-              カフェラテ M 220円
-            </button>
-            <button
-              class="coffee-btn latte hot"
-              onclick="addCoffee('ファミマ カフェラテ L', 260)"
-            >
-              カフェラテ L 260円
-            </button>
+    <!-- アイスコーヒー -->
+    <button
+      class="coffee-btn americano ice"
+      onclick="addCoffee('ファミマ アイスコーヒー S', 150)"
+    >
+      アイスコーヒー S 150円
+    </button>
+    <button
+      class="coffee-btn americano ice"
+      onclick="addCoffee('ファミマ アイスコーヒー M', 250)"
+    >
+      アイスコーヒー M 250円
+    </button>
+    <button
+      class="coffee-btn americano ice"
+      onclick="addCoffee('ファミマ アイスコーヒー L', 345)"
+    >
+      アイスコーヒー L 345円
+    </button>
+    <button
+      class="coffee-btn americano ice"
+      onclick="addCoffee('ファミマ アイスコーヒー LL *', 370)"
+    >
+      アイスコーヒー LL * 370円
+    </button>
 
-            <!-- アイスカフェラテ -->
-            <button
-              class="coffee-btn latte ice"
-              onclick="addCoffee('ファミマ アイスカフェラテ M', 240)"
-            >
-              アイスカフェラテ M 240円
-            </button>
-            <button
-              class="coffee-btn latte ice"
-              onclick="addCoffee('ファミマ アイスカフェラテ L', 330)"
-            >
-              アイスカフェラテ L 330円
-            </button>
+    <!-- カフェラテ（ホット） -->
+    <button
+      class="coffee-btn latte hot"
+      onclick="addCoffee('ファミマ カフェラテ M', 220)"
+    >
+      カフェラテ M 220円
+    </button>
+    <button
+      class="coffee-btn latte hot"
+      onclick="addCoffee('ファミマ カフェラテ L', 260)"
+    >
+      カフェラテ L 260円
+    </button>
+    <button
+      class="coffee-btn latte hot"
+      onclick="addCoffee('ファミマ カフェラテ LL *', 320)"
+    >
+      カフェラテ LL * 320円
+    </button>
 
-            <!-- モカブレンド -->
-            <button
-              class="coffee-btn other hot"
-              onclick="addCoffee('ファミマ モカブレンド S', 170)"
-            >
-              モカブレンド S 170円
-            </button>
-            <button
-              class="coffee-btn other hot"
-              onclick="addCoffee('ファミマ モカブレンド M', 250)"
-            >
-              モカブレンド M 250円
-            </button>
-            <button
-              class="coffee-btn other ice"
-              onclick="addCoffee('ファミマ アイスモカブレンド', 190)"
-            >
-              アイスモカブレンド 190円
-            </button>
-          </div>
-        </div>
+    <!-- アイスカフェラテ -->
+    <button
+      class="coffee-btn latte ice"
+      onclick="addCoffee('ファミマ アイスカフェラテ M', 250)"
+    >
+      アイスカフェラテ M 250円
+    </button>
+    <button
+      class="coffee-btn latte ice"
+      onclick="addCoffee('ファミマ アイスカフェラテ L', 345)"
+    >
+      アイスカフェラテ L 345円
+    </button>
+    <button
+      class="coffee-btn latte ice"
+      onclick="addCoffee('ファミマ アイスカフェラテ LL *', 370)"
+    >
+      アイスカフェラテ LL * 370円
+    </button>
+
+    <!-- モカブレンド -->
+    <button
+      class="coffee-btn other hot"
+      onclick="addCoffee('ファミマ モカブレンド S', 170)"
+    >
+      モカブレンド S 170円
+    </button>
+    <button
+      class="coffee-btn other hot"
+      onclick="addCoffee('ファミマ モカブレンド M', 250)"
+    >
+      モカブレンド M 250円
+    </button>
+    <button
+      class="coffee-btn other ice"
+      onclick="addCoffee('ファミマ アイスモカブレンド', 190)"
+    >
+      アイスモカブレンド 190円
+    </button>
+
+  </div>
+</div>
 
         <!-- ローソン -->
         <div class="coffee-store">
@@ -1002,7 +1020,6 @@
           user1: { name: "庞逸凡", balance: 0 },
           user2: { name: "彭月欣", balance: 0 },
           user3: { name: "洪賢美", balance: 0 },
-          user4: { name: "戴沅沣", balance: 0 },
           user5: { name: "後藤誠治", balance: 0 },
         },
         transactions: [],
@@ -1130,7 +1147,6 @@
             user1: { name: "庞逸凡", balance: 0 },
             user2: { name: "彭月欣", balance: 0 },
             user3: { name: "洪賢美", balance: 0 },
-            user4: { name: "戴沅沣", balance: 0 },
             user5: { name: "後藤誠治", balance: 0 },
           },
           transactions: [],
@@ -1395,7 +1411,6 @@
               user1: 0,
               user2: 0,
               user3: 0,
-              user4: 0,
               user5: 0,
             },
           }
